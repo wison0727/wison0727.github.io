@@ -1,0 +1,23 @@
+themes/
+# Hugo build output
+public/
+resources/_gen/
+.hugo_build.lock
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Backup config (not needed for deployment)
+_config_bak/
+
+# Old content directories (posts moved to posts/)
+content/post/
+content/page/
+
+# Old layout override (not needed)
+layouts/single.html
