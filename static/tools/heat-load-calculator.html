@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>热负荷计算器 - 化工工业炉设计</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1 { text-align: center; color: #d35400; margin: 30px 0; font-size: 1.8em; }
+        .card { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .card h2 { color: #2c3e50; margin-bottom: 16px; font-size: 1.2em; border-left: 4px solid #d35400; padding-left: 12px; }
+        .form-group { margin-bottom: 16px; }
+        label { display: block; font-weight: 600; margin-bottom: 6px; color: #555; }
+        input, select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; transition: border-color 0.3s; }
+        input:focus, select:focus { outline: none; border-color: #d35400; }
+        .row { display: flex; gap: 16px; }
+        .row .form-group { flex: 1; }
+        .btn { background: #d35400; color: #fff; border: none; padding: 12px 32px; border-radius: 6px; font-size: 16px; cursor: pointer; display: block; width: 100%; transition: background 0.3s; }
+        .btn:hover { background: #e67e22; }
+        .result { background: #f0f9f4; border: 2px solid #27ae60; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }
+        .result.show { display: block; }
+        .result-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #ddd; }
+        .result-item:last-child { border: none; }
+        .result-label { color: #666; }
+        .result-value { font-weight: 700; color: #27ae60; font-size: 1.1em; }
+        .tip { background: #fff8e1; border-left: 4px solid #f39c12; padding: 12px 16px; margin-top: 16px; border-radius: 0 6px 6px 0; font-size: 13px; color: #7f6b00; }
+        .back-link { display: inline-block; margin-bottom: 20px; color: #d35400; text-decoration: none; }
+        .back-link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <a href="/" class="back-link">← 返回首页</a>
+    <h1>🔥 工业炉热负荷计算器</h1>
+
+    <div class="card">
+        <h2>工艺参数输入</h2>
+        <div class="form-group">
+            <label>介质类型</label>
+            <select id="medium">
+                <option value="crude">原油</option>
+                <option value="naphtha">石脑油</option>
+                <option value="gas_oil">柴油/蜡油</option>
+                <option value="natural_gas">天然气</option>
+                <option value="water">水/蒸汽</option>
+                <option value="custom">自定义（输入比热容）</option>
+            </select>
+        </div>
+        <div id="customCp" class="form-group" style="display:none;">
+            <label>比热容 Cp (kJ/kg·°C)</label>
+            <input type="number" id="cpValue" step="0.01" placeholder="如 2.5">
+        </div>
+        <div class="row">
+            <div class="form-group">
+                <label>介质流量 (t/h)</label>
+                <input type="number" id="flowRate" placeholder="如 100" step="0.1">
+            </div>
+            <div class="form-group">
+                <label>工作压力 (MPa)</label>
+                <input type="number" id="pressure" placeholder="如 1.0" step="0.01">
+            </div>
+        </div>
+        <div class="row">
+            <div class="form-group">
+                <label>入口温度 (°C)</label>
+                <input type="number" id="tempIn" placeholder="如 200">
+            </div>
+            <div class="form-group">
+                <label>出口温度 (°C)</label>
+                <input type="number" id="tempOut" placeholder="如 350">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>散热损失系数 (%)</label>
+            <input type="number" id="heatLoss" placeholder="通常 2~5" step="0.1" value="3">
+        </div>
+        <button class="btn" onclick="calculate()">计算热负荷</button>
+    </div>
+
+    <div class="result" id="result">
+        <h2>📊 计算结果</h2>
+        <div class="result-item">
+            <span class="result-label">温升</span>
+            <span class="result-value" id="rDeltaT">-</span>
+        </div>
+        <div class="result-item">
+            <span class="result-label">介质吸收热量 Q1</span>
+            <span class="result-value" id="rQ1">-</span>
+        </div>
+        <div class="result-item">
+            <span class="result-label">散热损失 Q2</span>
+            <span class="result-value" id="rQ2">-</span>
+        </div>
+        <div class="result-item">
+            <span class="result-label">总热负荷 Q</span>
+            <span class="result-value" id="rTotal">-</span>
+        </div>
+        <div class="result-item">
+            <span class="result-label">热负荷 (MW)</span>
+            <span class="result-value" id="rMW">-</span>
+        </div>
+    </div>
+
+    <div class="tip">
+        💡 <strong>说明</strong>：Q = Q1 + Q2，其中 Q1 = F × Cp × ΔT，Q2 = Q1 × 散热系数。此工具仅供方案设计阶段快速估算，详细计算请使用专业软件。
+    </div>
+</div>
+
+<script>
+const cpMap = {
+    crude: 2.1,
+    naphtha: 2.3,
+    gas_oil: 2.0,
+    natural_gas: 2.2,
+    water: 4.18
+};
+
+document.getElementById('medium').addEventListener('change', function() {
+    document.getElementById('customCp').style.display = this.value === 'custom' ? 'block' : 'none';
+});
+
+function calculate() {
+    const medium = document.getElementById('medium').value;
+    const cp = medium === 'custom' ? parseFloat(document.getElementById('cpValue').value) : cpMap[medium];
+    const flowRate = parseFloat(document.getElementById('flowRate').value);
+    const tempIn = parseFloat(document.getElementById('tempIn').value);
+    const tempOut = parseFloat(document.getElementById('tempOut').value);
+    const heatLoss = parseFloat(document.getElementById('heatLoss').value) / 100;
+
+    if (isNaN(cp) || isNaN(flowRate) || isNaN(tempIn) || isNaN(tempOut)) {
+        alert('请填写完整的计算参数');
+        return;
+    }
+
+    const deltaT = tempOut - tempIn;
+    if (deltaT <= 0) {
+        alert('出口温度应大于入口温度');
+        return;
+    }
+
+    const Q1 = flowRate * 1000 / 3600 * cp * deltaT;
+    const Q2 = Q1 * heatLoss;
+    const Q = Q1 + Q2;
+
+    document.getElementById('rDeltaT').textContent = deltaT.toFixed(1) + ' °C';
+    document.getElementById('rQ1').textContent = Q1.toFixed(2) + ' kW';
+    document.getElementById('rQ2').textContent = Q2.toFixed(2) + ' kW';
+    document.getElementById('rTotal').textContent = Q.toFixed(2) + ' kW';
+    document.getElementById('rMW').textContent = (Q / 1000).toFixed(3) + ' MW';
+
+    document.getElementById('result').classList.add('show');
+}
+</script>
+</body>
+</html>

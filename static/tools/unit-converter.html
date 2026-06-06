@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>单位换算 - 化工工业炉设计</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1 { text-align: center; color: #16a085; margin: 30px 0; font-size: 1.8em; }
+        .card { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .card h2 { color: #2c3e50; margin-bottom: 16px; font-size: 1.2em; border-left: 4px solid #16a085; padding-left: 12px; }
+        .form-group { margin-bottom: 16px; }
+        label { display: block; font-weight: 600; margin-bottom: 6px; color: #555; }
+        input, select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+        .row { display: flex; gap: 16px; align-items: center; }
+        .row .form-group { flex: 1; }
+        .arrow { font-size: 24px; color: #16a085; padding: 0 8px; }
+        .result-val { background: #e8f8f5; border: 2px solid #16a085; border-radius: 8px; padding: 16px; text-align: center; font-size: 1.5em; font-weight: 700; color: #16a085; margin-top: 8px; }
+        .back-link { display: inline-block; margin-bottom: 20px; color: #16a085; text-decoration: none; }
+        .back-link:hover { text-decoration: underline; }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { padding: 8px 12px; border: 1px solid #eee; text-align: left; }
+        th { background: #16a085; color: #fff; }
+        tr:nth-child(even) { background: #f9f9f9; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <a href="/" class="back-link">← 返回首页</a>
+    <h1>🔄 工程单位换算</h1>
+
+    <div class="card">
+        <h2>热量 / 能量</h2>
+        <div class="form-group">
+            <label>输入值</label>
+            <input type="number" id="heatIn" oninput="convertHeat()" placeholder="输入数值">
+        </div>
+        <div class="row">
+            <div class="form-group">
+                <label>从</label>
+                <select id="heatFrom" onchange="convertHeat()">
+                    <option value="kcal">kcal/h</option>
+                    <option value="kw" selected>kW</option>
+                    <option value="btu">BTU/h</option>
+                    <option value="mw">MW</option>
+                    <option value="gj">GJ/h</option>
+                </select>
+            </div>
+            <span class="arrow">→</span>
+            <div class="form-group">
+                <label>到</label>
+                <select id="heatTo" onchange="convertHeat()">
+                    <option value="kcal" selected>kcal/h</option>
+                    <option value="kw">kW</option>
+                    <option value="btu">BTU/h</option>
+                    <option value="mw">MW</option>
+                    <option value="gj">GJ/h</option>
+                </select>
+            </div>
+        </div>
+        <div class="result-val" id="heatResult">—</div>
+    </div>
+
+    <div class="card">
+        <h2>压力</h2>
+        <div class="form-group">
+            <label>输入值</label>
+            <input type="number" id="pressIn" oninput="convertPress()" placeholder="输入数值">
+        </div>
+        <div class="row">
+            <div class="form-group">
+                <label>从</label>
+                <select id="pressFrom" onchange="convertPress()">
+                    <option value="pa">Pa</option>
+                    <option value="kpa">kPa</option>
+                    <option value="mpa" selected>MPa</option>
+                    <option value="bar">bar</option>
+                    <option value="atm">atm</option>
+                    <option value="psi">psi</option>
+                    <option value="kgcm2">kg/cm²</option>
+                </select>
+            </div>
+            <span class="arrow">→</span>
+            <div class="form-group">
+                <label>到</label>
+                <select id="pressTo" onchange="convertPress()">
+                    <option value="pa">Pa</option>
+                    <option value="kpa">kPa</option>
+                    <option value="mpa">MPa</option>
+                    <option value="bar" selected>bar</option>
+                    <option value="atm">atm</option>
+                    <option value="psi">psi</option>
+                    <option value="kgcm2">kg/cm²</option>
+                </select>
+            </div>
+        </div>
+        <div class="result-val" id="pressResult">—</div>
+    </div>
+
+    <div class="card">
+        <h2>常用换算速查</h2>
+        <table>
+            <tr><th>类型</th><th>换算关系</th></tr>
+            <tr><td>热量</td><td>1 kW = 860 kcal/h = 3412 BTU/h</td></tr>
+            <tr><td>热量</td><td>1 MW = 1000 kW = 86 万 kcal/h</td></tr>
+            <tr><td>压力</td><td>1 MPa = 10 bar = 10.2 kg/cm² = 145 psi</td></tr>
+            <tr><td>压力</td><td>1 atm = 101.325 kPa = 1.01325 bar</td></tr>
+            <tr><td>温度</td><td>°C = (°F - 32) × 5/9；K = °C + 273.15</td></tr>
+            <tr><td>流量</td><td>1 m³/h = 1000 L/h = 4.403 USGPM</td></tr>
+            <tr><td>面积</td><td>1 m² = 10.764 ft²</td></tr>
+            <tr><td>长度</td><td>1 inch = 25.4 mm；1 ft = 304.8 mm</td></tr>
+        </table>
+    </div>
+</div>
+
+<script>
+const heatToKW = { kcal: 1/860, kw: 1, btu: 1/3412, mw: 1000, gj: 1000/3.6 };
+function convertHeat() {
+    const v = parseFloat(document.getElementById('heatIn').value);
+    if (isNaN(v)) { document.getElementById('heatResult').textContent = '—'; return; }
+    const kw = v * heatToKW[document.getElementById('heatFrom').value];
+    const out = kw / heatToKW[document.getElementById('heatTo').value];
+    document.getElementById('heatResult').textContent = out.toPrecision(6);
+}
+
+const pressToMPa = { pa: 1e-6, kpa: 1e-3, mpa: 1, bar: 0.1, atm: 0.101325, psi: 0.00689476, kgcm2: 0.0980665 };
+function convertPress() {
+    const v = parseFloat(document.getElementById('pressIn').value);
+    if (isNaN(v)) { document.getElementById('pressResult').textContent = '—'; return; }
+    const mpa = v * pressToMPa[document.getElementById('pressFrom').value];
+    const out = mpa / pressToMPa[document.getElementById('pressTo').value];
+    document.getElementById('pressResult').textContent = out.toPrecision(6);
+}
+</script>
+</body>
+</html>

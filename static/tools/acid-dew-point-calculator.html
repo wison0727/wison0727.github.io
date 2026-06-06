@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>酸露点温度计算器 - 化工工业炉设计</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1 { text-align: center; color: #2980b9; margin: 30px 0; font-size: 1.8em; }
+        .card { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .card h2 { color: #2c3e50; margin-bottom: 16px; font-size: 1.2em; border-left: 4px solid #2980b9; padding-left: 12px; }
+        .form-group { margin-bottom: 16px; }
+        label { display: block; font-weight: 600; margin-bottom: 6px; color: #555; }
+        input, select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+        input:focus, select:focus { outline: none; border-color: #2980b9; }
+        .row { display: flex; gap: 16px; }
+        .row .form-group { flex: 1; }
+        .btn { background: #2980b9; color: #fff; border: none; padding: 12px 32px; border-radius: 6px; font-size: 16px; cursor: pointer; display: block; width: 100%; }
+        .btn:hover { background: #3498db; }
+        .result { background: #fdf2f2; border: 2px solid #e74c3c; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }
+        .result.show { display: block; }
+        .result-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #ddd; }
+        .result-item:last-child { border: none; }
+        .result-label { color: #666; }
+        .result-value { font-weight: 700; color: #e74c3c; font-size: 1.1em; }
+        .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px 16px; margin-top: 16px; border-radius: 0 6px 6px 0; font-size: 13px; }
+        .tip { background: #e8f4fd; border-left: 4px solid #2980b9; padding: 12px 16px; margin-top: 16px; border-radius: 0 6px 6px 0; font-size: 13px; }
+        .back-link { display: inline-block; margin-bottom: 20px; color: #2980b9; text-decoration: none; }
+        .back-link:hover { text-decoration: underline; }
+        .safe { color: #27ae60; font-weight: 700; font-size: 1.1em; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <a href="/" class="back-link">← 返回首页</a>
+    <h1>🌡️ 烟气酸露点温度计算器</h1>
+
+    <div class="card">
+        <h2>燃料参数</h2>
+        <div class="form-group">
+            <label>燃料类型</label>
+            <select id="fuelType" onchange="updateDefaults()">
+                <option value="natural_gas">天然气</option>
+                <option value="refinery_gas">炼厂气</option>
+                <option value="fuel_oil">燃料油</option>
+                <option value="heavy_oil">重油</option>
+            </select>
+        </div>
+        <div class="row">
+            <div class="form-group">
+                <label>燃料含硫量 (wt%)</label>
+                <input type="number" id="sulfurContent" step="0.001" placeholder="如 0.5">
+            </div>
+            <div class="form-group">
+                <label>烟气中 SO₃ 转化率 (%)</label>
+                <input type="number" id="so3Conversion" step="0.1" value="3" placeholder="通常 1~5">
+            </div>
+        </div>
+        <div class="row">
+            <div class="form-group">
+                <label>烟气中水蒸气体积分数 (%)</label>
+                <input type="number" id="h2oContent" step="0.1" placeholder="如 15">
+            </div>
+            <div class="form-group">
+                <label>排烟温度 (°C)</label>
+                <input type="number" id="flueTemp" placeholder="如 180">
+            </div>
+        </div>
+        <button class="btn" onclick="calculate()">计算酸露点</button>
+    </div>
+
+    <div class="result" id="result">
+        <h2>📊 计算结果</h2>
+        <div class="result-item">
+            <span class="result-label">水露点温度</span>
+            <span class="result-value" id="rWaterDew">-</span>
+        </div>
+        <div class="result-item">
+            <span class="result-label">硫酸露点温度</span>
+            <span class="result-value" id="rAcidDew">-</span>
+        </div>
+        <div class="result-item">
+            <span class="result-label">推荐最低排烟温度</span>
+            <span class="result-value" id="rSafeTemp">-</span>
+        </div>
+        <div class="result-item">
+            <span class="result-label">安全评估</span>
+            <span id="rAssess">-</span>
+        </div>
+    </div>
+
+    <div class="warning" id="warnBox" style="display:none;">
+        ⚠️ 当前排烟温度低于推荐安全温度，存在低温腐蚀风险！建议提高排烟温度或选用耐腐蚀材料（如 ND 钢、搪瓷管）。
+    </div>
+
+    <div class="tip">
+        💡 <strong>计算说明</strong>：酸露点基于 Verhoff & Banchero (1973) 公式估算。SO₃ 转化率受燃料类型、燃烧温度和催化剂影响，典型值 1~5%。实际工程中建议取安全余量 10~20°C。
+    </div>
+</div>
+
+<script>
+const defaults = {
+    natural_gas: { sulfur: 0.01, so3: 1, h2o: 18 },
+    refinery_gas: { sulfur: 0.05, so3: 2, h2o: 16 },
+    fuel_oil: { sulfur: 1.0, so3: 3, h2o: 13 },
+    heavy_oil: { sulfur: 3.0, so3: 5, h2o: 12 }
+};
+
+function updateDefaults() {
+    const d = defaults[document.getElementById('fuelType').value];
+    document.getElementById('sulfurContent').value = d.sulfur;
+    document.getElementById('so3Conversion').value = d.so3;
+    document.getElementById('h2oContent').value = d.h2o;
+}
+updateDefaults();
+
+function calculate() {
+    const sulfur = parseFloat(document.getElementById('sulfurContent').value);
+    const so3Rate = parseFloat(document.getElementById('so3Conversion').value) / 100;
+    const h2o = parseFloat(document.getElementById('h2oContent').value);
+    const flueTemp = parseFloat(document.getElementById('flueTemp').value);
+
+    if (isNaN(sulfur) || isNaN(h2o) || isNaN(flueTemp)) {
+        alert('请填写完整参数');
+        return;
+    }
+
+    // 烟气中 SO3 浓度估算 (ppm)
+    // 简化计算: 每1%硫 -> 约2000ppm SO2, SO3 = SO2 * conversion
+    const so3_ppm = sulfur * 2000 * so3Rate;
+
+    // 水露点 (简化公式, 基于水蒸气分压)
+    const pH2O = h2o / 100; // 大气压近似
+    const waterDew = 669.1 - 43.95 * Math.log(1 / pH2O) + 2.38 * Math.pow(Math.log(1 / pH2O), 2);
+    const waterDewC = waterDew - 273.15;
+
+    // 酸露点 (Verhoff & Banchero 公式简化)
+    const so3_frac = so3_ppm * 1e-6;
+    const acidDewK = 1000 / (2.276 - 0.0644 * Math.log10(h2o) - 0.0964 * Math.log10(so3_frac > 0 ? so3_frac : 1e-10) + 0.0051 * Math.log10(h2o) * Math.log10(so3_frac > 0 ? so3_frac : 1e-10));
+    const acidDewC = acidDewK - 273.15;
+
+    // 推荐安全温度 (高于酸露点15度)
+    const safeTemp = Math.max(acidDewC + 15, 120);
+
+    document.getElementById('rWaterDew').textContent = waterDewC.toFixed(1) + ' °C';
+    document.getElementById('rAcidDew').textContent = acidDewC.toFixed(1) + ' °C';
+    document.getElementById('rSafeTemp').textContent = safeTemp.toFixed(0) + ' °C';
+
+    const assess = document.getElementById('rAssess');
+    const warnBox = document.getElementById('warnBox');
+    if (flueTemp >= safeTemp) {
+        assess.innerHTML = '<span class="safe">✅ 安全 — 排烟温度高于推荐值</span>';
+        warnBox.style.display = 'none';
+    } else {
+        assess.innerHTML = '<span style="color:#e74c3c;font-weight:700;">❌ 有风险 — 排烟温度偏低 ' + (safeTemp - flueTemp).toFixed(0) + ' °C</span>';
+        warnBox.style.display = 'block';
+    }
+
+    document.getElementById('result').classList.add('show');
+}
+</script>
+</body>
+</html>
