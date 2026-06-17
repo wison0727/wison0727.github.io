@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>热负荷计算器 - 化工工业炉设计</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
@@ -19,6 +21,8 @@
         .row .form-group { flex: 1; }
         .btn { background: #d35400; color: #fff; border: none; padding: 12px 32px; border-radius: 6px; font-size: 16px; cursor: pointer; display: block; width: 100%; transition: background 0.3s; }
         .btn:hover { background: #e67e22; }
+        .btn-pdf { background: #2980b9; margin-top: 12px; }
+        .btn-pdf:hover { background: #3498db; }
         .result { background: #f0f9f4; border: 2px solid #27ae60; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }
         .result.show { display: block; }
         .result-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #ddd; }
@@ -32,8 +36,8 @@
 </head>
 <body>
 <div class="container">
-    <a href="/" class="back-link">← 返回首页</a>
-    <h1>🔥 工业炉热负荷计算器</h1>
+    <a href="/" class="back-link">&larr; 返回首页</a>
+    <h1>&#128293; 工业炉热负荷计算器</h1>
 
     <div class="card">
         <h2>工艺参数输入</h2>
@@ -49,7 +53,7 @@
             </select>
         </div>
         <div id="customCp" class="form-group" style="display:none;">
-            <label>比热容 Cp (kJ/kg·°C)</label>
+            <label>比热容 Cp (kJ/kg&middot;&deg;C)</label>
             <input type="number" id="cpValue" step="0.01" placeholder="如 2.5">
         </div>
         <div class="row">
@@ -64,11 +68,11 @@
         </div>
         <div class="row">
             <div class="form-group">
-                <label>入口温度 (°C)</label>
+                <label>入口温度 (&deg;C)</label>
                 <input type="number" id="tempIn" placeholder="如 200">
             </div>
             <div class="form-group">
-                <label>出口温度 (°C)</label>
+                <label>出口温度 (&deg;C)</label>
                 <input type="number" id="tempOut" placeholder="如 350">
             </div>
         </div>
@@ -80,9 +84,25 @@
     </div>
 
     <div class="result" id="result">
-        <h2>📊 计算结果</h2>
+        <h2>&#128202; 计算结果</h2>
         <div class="result-item">
-            <span class="result-label">温升</span>
+            <span class="result-label">介质类型</span>
+            <span class="result-value" id="rMedium">-</span>
+        </div>
+        <div class="result-item">
+            <span class="result-label">比热容 Cp</span>
+            <span class="result-value" id="rCp">-</span>
+        </div>
+        <div class="result-item">
+            <span class="result-label">流量</span>
+            <span class="result-value" id="rFlow">-</span>
+        </div>
+        <div class="result-item">
+            <span class="result-label">入口温度 / 出口温度</span>
+            <span class="result-value" id="rTemps">-</span>
+        </div>
+        <div class="result-item">
+            <span class="result-label">温升 &Delta;T</span>
             <span class="result-value" id="rDeltaT">-</span>
         </div>
         <div class="result-item">
@@ -101,33 +121,42 @@
             <span class="result-label">热负荷 (MW)</span>
             <span class="result-value" id="rMW">-</span>
         </div>
+        <button class="btn btn-pdf" onclick="downloadPDF()">&#128196; 下载计算报告 (PDF)</button>
     </div>
 
     <div class="tip">
-        💡 <strong>说明</strong>：Q = Q1 + Q2，其中 Q1 = F × Cp × ΔT，Q2 = Q1 × 散热系数。此工具仅供方案设计阶段快速估算，详细计算请使用专业软件。
+        &#128161; <strong>说明</strong>：Q = Q1 + Q2，其中 Q1 = F &times; Cp &times; &Delta;T，Q2 = Q1 &times; 散热系数。此工具仅供方案设计阶段快速估算，详细计算请使用专业软件。
     </div>
 </div>
 
 <script>
+const { jsPDF } = window.jspdf;
+
 const cpMap = {
-    crude: 2.1,
-    naphtha: 2.3,
-    gas_oil: 2.0,
-    natural_gas: 2.2,
-    water: 4.18
+    crude: { name: "原油", cp: 2.1 },
+    naphtha: { name: "石脑油", cp: 2.3 },
+    gas_oil: { name: "柴油/蜡油", cp: 2.0 },
+    natural_gas: { name: "天然气", cp: 2.2 },
+    water: { name: "水/蒸汽", cp: 4.18 }
 };
+
+// 存储最后一次计算的输入和结果
+let lastInput = {};
+let lastResult = {};
 
 document.getElementById('medium').addEventListener('change', function() {
     document.getElementById('customCp').style.display = this.value === 'custom' ? 'block' : 'none';
 });
 
 function calculate() {
-    const medium = document.getElementById('medium').value;
-    const cp = medium === 'custom' ? parseFloat(document.getElementById('cpValue').value) : cpMap[medium];
+    const mediumKey = document.getElementById('medium').value;
+    const medium = mediumKey === 'custom' ? { name: "自定义", cp: parseFloat(document.getElementById('cpValue').value) } : cpMap[mediumKey];
+    const cp = medium.cp;
     const flowRate = parseFloat(document.getElementById('flowRate').value);
+    const pressure = parseFloat(document.getElementById('pressure').value) || 0;
     const tempIn = parseFloat(document.getElementById('tempIn').value);
     const tempOut = parseFloat(document.getElementById('tempOut').value);
-    const heatLoss = parseFloat(document.getElementById('heatLoss').value) / 100;
+    const heatLossRate = parseFloat(document.getElementById('heatLoss').value);
 
     if (isNaN(cp) || isNaN(flowRate) || isNaN(tempIn) || isNaN(tempOut)) {
         alert('请填写完整的计算参数');
@@ -140,17 +169,131 @@ function calculate() {
         return;
     }
 
+    const heatLoss = heatLossRate / 100;
     const Q1 = flowRate * 1000 / 3600 * cp * deltaT;
     const Q2 = Q1 * heatLoss;
     const Q = Q1 + Q2;
 
-    document.getElementById('rDeltaT').textContent = deltaT.toFixed(1) + ' °C';
+    // 保存输入和结果
+    lastInput = { medium: medium.name, cp: cp, flowRate: flowRate, pressure: pressure, tempIn: tempIn, tempOut: tempOut, heatLossRate: heatLossRate };
+    lastResult = { deltaT: deltaT, Q1: Q1, Q2: Q2, Q: Q, QMW: Q / 1000 };
+
+    // 显示结果
+    document.getElementById('rMedium').textContent = medium.name;
+    document.getElementById('rCp').textContent = cp.toFixed(2) + ' kJ/kg\u00B7\u00B0C';
+    document.getElementById('rFlow').textContent = flowRate + ' t/h';
+    document.getElementById('rTemps').textContent = tempIn + ' \u00B0C / ' + tempOut + ' \u00B0C';
+    document.getElementById('rDeltaT').textContent = deltaT.toFixed(1) + ' \u00B0C';
     document.getElementById('rQ1').textContent = Q1.toFixed(2) + ' kW';
     document.getElementById('rQ2').textContent = Q2.toFixed(2) + ' kW';
     document.getElementById('rTotal').textContent = Q.toFixed(2) + ' kW';
     document.getElementById('rMW').textContent = (Q / 1000).toFixed(3) + ' MW';
 
     document.getElementById('result').classList.add('show');
+}
+
+function downloadPDF() {
+    const doc = new jsPDF();
+    const now = new Date();
+    const dateStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+
+    // 注册并使用内置字体（Helvetica），中文用 Unicode 编码
+    doc.setFont("Helvetica", "normal");
+
+    // === 标题区域 ===
+    doc.setFillColor(211, 84, 0);
+    doc.rect(0, 0, 210, 40, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.text("Industrial Furnace Heat Load Calculation Report", 105, 18, { align: "center" });
+    doc.setFontSize(11);
+    doc.text("Generated: " + dateStr, 105, 30, { align: "center" });
+
+    doc.setTextColor(0, 0, 0);
+    let y = 52;
+
+    // === 输入参数表 ===
+    doc.setFontSize(14);
+    doc.setTextColor(44, 62, 80);
+    doc.text("1. Input Parameters", 14, y);
+    y += 4;
+
+    doc.autoTable({
+        startY: y,
+        head: [["Parameter", "Value", "Unit"]],
+        body: [
+            ["Medium Type", lastInput.medium || "-", "-"],
+            ["Specific Heat (Cp)", (lastInput.cp || 0).toFixed(2), "kJ/kg\u00B7\u00B0C"],
+            ["Flow Rate", String(lastInput.flowRate || 0), "t/h"],
+            ["Operating Pressure", (lastInput.pressure || 0).toFixed(2), "MPa"],
+            ["Inlet Temperature", String(lastInput.tempIn || 0), "\u00B0C"],
+            ["Outlet Temperature", String(lastInput.tempOut || 0), "\u00B0C"],
+            ["Heat Loss Factor", String(lastInput.heatLossRate || 0), "%"]
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [211, 84, 0], textColor: 255, fontSize: 10 },
+        bodyStyles: { fontSize: 10 },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+        margin: { left: 14, right: 14 }
+    });
+
+    y = doc.lastAutoTable.finalY + 14;
+
+    // === 计算结果表 ===
+    doc.setFontSize(14);
+    doc.setTextColor(44, 62, 80);
+    doc.text("2. Calculation Results", 14, y);
+    y += 4;
+
+    doc.autoTable({
+        startY: y,
+        head: [["Item", "Value", "Unit"]],
+        body: [
+            ["Temperature Rise (\u0394T)", (lastResult.deltaT || 0).toFixed(1), "\u00B0C"],
+            ["Medium Absorbed Heat (Q1)", (lastResult.Q1 || 0).toFixed(2), "kW"],
+            ["Heat Loss (Q2)", (lastResult.Q2 || 0).toFixed(2), "kW"],
+            ["Total Heat Load (Q)", (lastResult.Q || 0).toFixed(2), "kW"],
+            ["Heat Load (MW)", (lastResult.QMW || 0).toFixed(3), "MW"]
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [39, 174, 96], textColor: 255, fontSize: 10 },
+        bodyStyles: { fontSize: 11 },
+        alternateRowStyles: { fillColor: [240, 249, 244] },
+        margin: { left: 14, right: 14 }
+    });
+
+    y = doc.lastAutoTable.finalY + 14;
+
+    // === 计算公式 ===
+    doc.setFontSize(14);
+    doc.setTextColor(44, 62, 80);
+    doc.text("3. Formulas", 14, y);
+    y += 8;
+
+    doc.setFontSize(10);
+    doc.setTextColor(80, 80, 80);
+    doc.text("Q1 = F x Cp x \u0394T", 20, y); y += 6;
+    doc.text("Q2 = Q1 x Heat Loss Factor", 20, y); y += 6;
+    doc.text("Q  = Q1 + Q2", 20, y); y += 12;
+
+    // === 备注 ===
+    doc.setFontSize(14);
+    doc.setTextColor(44, 62, 80);
+    doc.text("4. Notes", 14, y);
+    y += 8;
+
+    doc.setFontSize(9);
+    doc.setTextColor(120, 120, 120);
+    doc.text("This report is for preliminary design reference only.", 20, y); y += 5;
+    doc.text("For detailed engineering calculations, please use professional software (e.g. HTRI, Aspen).", 20, y); y += 5;
+    doc.text("Generated by Chemical Industrial Furnace Design Online Tools.", 20, y);
+
+    // 页脚
+    doc.setFontSize(8);
+    doc.setTextColor(180, 180, 180);
+    doc.text("wison0727.github.io", 105, 290, { align: "center" });
+
+    doc.save("Heat_Load_Calculation_Report.pdf");
 }
 </script>
 </body>
