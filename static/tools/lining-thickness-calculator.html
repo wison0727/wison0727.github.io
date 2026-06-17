@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>耐火衬里厚度计算器</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1 { text-align: center; color: #e67e22; margin: 30px 0; font-size: 1.8em; }
+        .card { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .card h2 { color: #2c3e50; margin-bottom: 16px; font-size: 1.2em; border-left: 4px solid #e67e22; padding-left: 12px; }
+        .form-group { margin-bottom: 16px; }
+        label { display: block; font-weight: 600; margin-bottom: 6px; color: #555; }
+        input, select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+        input:focus, select:focus { outline: none; border-color: #e67e22; }
+        .row { display: flex; gap: 16px; }
+        .row .form-group { flex: 1; }
+        .btn { background: #e67e22; color: #fff; border: none; padding: 12px 32px; border-radius: 6px; font-size: 16px; cursor: pointer; display: block; width: 100%; }
+        .btn:hover { background: #d35400; }
+        .result { background: #fdf2e9; border: 2px solid #e67e22; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }
+        .result.show { display: block; }
+        .result-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #ddd; }
+        .result-item:last-child { border: none; }
+        .result-label { color: #666; }
+        .result-value { font-weight: 700; color: #e67e22; font-size: 1.1em; }
+        .back-link { display: inline-block; margin-bottom: 20px; color: #e67e22; text-decoration: none; }
+        .back-link:hover { text-decoration: underline; }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { padding: 8px 12px; border: 1px solid #eee; text-align: center; }
+        th { background: #e67e22; color: #fff; }
+        tr:nth-child(even) { background: #fef9f0; }
+        .tip { background: #e8f4fd; border-left: 4px solid #3498db; padding: 12px 16px; margin-top: 16px; border-radius: 0 6px 6px 0; font-size: 13px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <a href="/tools/" class="back-link">← 返回工具列表</a>
+    <h1>🧱 耐火衬里厚度计算器</h1>
+
+    <div class="card">
+        <h2>设计参数</h2>
+        <div class="row">
+            <div class="form-group">
+                <label>炉膛设计温度 (°C)</label>
+                <input type="number" id="furnaceTemp" placeholder="如 850">
+            </div>
+            <div class="form-group">
+                <label>环境温度 (°C)</label>
+                <input type="number" id="envTemp" value="25">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>允许外表温度 (°C)</label>
+            <input type="number" id="maxSkinTemp" value="70" placeholder="通常 60~80°C">
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>衬里结构（由内到外）</h2>
+        <table>
+            <tr><th>层</th><th>材料</th><th>导热系数 (W/m·K)</th><th>厚度 (mm)</th></tr>
+            <tr><td>工作层</td><td>高铝砖/刚玉砖</td><td><input type="number" id="k1" value="1.5" step="0.1" style="width:80px;text-align:center;"></td><td><input type="number" id="t1" value="230" style="width:80px;text-align:center;"></td></tr>
+            <tr><td>隔热层</td><td>轻质隔热砖</td><td><input type="number" id="k2" value="0.3" step="0.01" style="width:80px;text-align:center;"></td><td><input type="number" id="t2" value="114" style="width:80px;text-align:center;"></td></tr>
+            <tr><td>保温层</td><td>硅酸铝纤维毡</td><td><input type="number" id="k3" value="0.08" step="0.01" style="width:80px;text-align:center;"></td><td><input type="number" id="t3" value="50" style="width:80px;text-align:center;"></td></tr>
+        </table>
+    </div>
+
+    <button class="btn" onclick="calculate()">计算外表温度</button>
+
+    <div class="result" id="result">
+        <h2>📊 计算结果</h2>
+        <div class="result-item">
+            <span class="result-label">衬里总厚度</span>
+            <span class="result-value" id="rTotalThick">-</span>
+        </div>
+        <div class="result-item">
+            <span class="result-label">热流密度 q</span>
+            <span class="result-value" id="rHeatFlux">-</span>
+        </div>
+        <div class="result-item">
+            <span class="result-label">外表温度</span>
+            <span class="result-value" id="rSkinTemp">-</span>
+        </div>
+        <div class="result-item">
+            <span class="result-label">各层界面温度</span>
+            <span class="result-value" id="rLayerTemps">-</span>
+        </div>
+        <div class="result-item">
+            <span class="result-label">评估</span>
+            <span id="rAssess">-</span>
+        </div>
+    </div>
+
+    <div class="tip">
+        💡 <strong>说明</strong>：基于一维稳态导热计算，q = (T_furnace - T_env) / Σ(δ_i/λ_i)，T_skin = T_env + q × R_total。实际设计需考虑锚固件热桥和辐射散热。
+    </div>
+</div>
+<script>
+function calculate() {
+    const Tf = parseFloat(document.getElementById('furnaceTemp').value);
+    const Te = parseFloat(document.getElementById('envTemp').value);
+    const Tmax = parseFloat(document.getElementById('maxSkinTemp').value);
+    const layers = [
+        { k: parseFloat(document.getElementById('k1').value), t: parseFloat(document.getElementById('t1').value) },
+        { k: parseFloat(document.getElementById('k2').value), t: parseFloat(document.getElementById('t2').value) },
+        { k: parseFloat(document.getElementById('k3').value), t: parseFloat(document.getElementById('t3').value) }
+    ];
+    if (isNaN(Tf) || isNaN(Te)) { alert('请填写完整参数'); return; }
+    let Rtotal = 0;
+    let totalThick = 0;
+    layers.forEach(l => { Rtotal += (l.t / 1000) / l.k; totalThick += l.t; });
+    const q = (Tf - Te) / Rtotal;
+    const Tskin = Te + q * Rtotal;
+    let temps = [Tf];
+    let T = Tf;
+    layers.forEach(l => { T -= q * (l.t / 1000) / l.k; temps.push(T.toFixed(0)); });
+    document.getElementById('rTotalThick').textContent = totalThick + ' mm';
+    document.getElementById('rHeatFlux').textContent = (q / 1000).toFixed(2) + ' kW/m²';
+    document.getElementById('rSkinTemp').textContent = Tskin.toFixed(1) + ' °C';
+    document.getElementById('rLayerTemps').textContent = temps.join(' → ') + ' °C';
+    const assess = document.getElementById('rAssess');
+    assess.innerHTML = Tskin <= Tmax
+        ? '<span style="color:#27ae60;font-weight:700;">✅ 外表温度满足要求</span>'
+        : '<span style="color:#e74c3c;font-weight:700;">❌ 外表温度超标，需增加保温层厚度</span>';
+    document.getElementById('result').classList.add('show');
+}
+</script>
+</body>
+</html>
