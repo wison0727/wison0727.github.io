@@ -3,136 +3,512 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>单位换算 - 化工工业炉设计</title>
+    <title>在线单位换算 - 化工工业炉设计</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
         .container { max-width: 800px; margin: 0 auto; padding: 20px; }
         h1 { text-align: center; color: #16a085; margin: 30px 0; font-size: 1.8em; }
         .card { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        .card h2 { color: #2c3e50; margin-bottom: 16px; font-size: 1.2em; border-left: 4px solid #16a085; padding-left: 12px; }
         .form-group { margin-bottom: 16px; }
         label { display: block; font-weight: 600; margin-bottom: 6px; color: #555; }
         input, select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+        input:focus, select:focus { outline: none; border-color: #16a085; }
         .row { display: flex; gap: 16px; align-items: center; }
         .row .form-group { flex: 1; }
-        .arrow { font-size: 24px; color: #16a085; padding: 0 8px; }
+        .arrow { font-size: 24px; color: #16a085; padding: 0 8px; flex-shrink: 0; }
         .result-val { background: #e8f8f5; border: 2px solid #16a085; border-radius: 8px; padding: 16px; text-align: center; font-size: 1.5em; font-weight: 700; color: #16a085; margin-top: 8px; }
         .back-link { display: inline-block; margin-bottom: 20px; color: #16a085; text-decoration: none; }
         .back-link:hover { text-decoration: underline; }
-        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-        th, td { padding: 8px 12px; border: 1px solid #eee; text-align: left; }
-        th { background: #16a085; color: #fff; }
-        tr:nth-child(even) { background: #f9f9f9; }
+        .btn-group { display: flex; gap: 10px; margin-top: 12px; }
+        .btn { padding: 10px 20px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; cursor: pointer; background: #fff; color: #333; transition: all 0.2s; }
+        .btn:hover { border-color: #16a085; color: #16a085; }
+        .btn-primary { background: #16a085; color: #fff; border-color: #16a085; }
+        .btn-primary:hover { background: #1abc9c; }
+        .btn-pdf { background: #16a085; color: #fff; border-color: #16a085; }
+        .btn-pdf:hover { background: #22c55e; }
+        .formula { background: #f0f9f4; border-left: 4px solid #16a085; padding: 12px 16px; margin-top: 16px; border-radius: 0 6px 6px 0; font-size: 13px; color: #555; }
+        .category-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+        .category-tab { padding: 6px 14px; border: 1px solid #ddd; border-radius: 20px; cursor: pointer; font-size: 13px; background: #fff; color: #555; transition: all 0.2s; }
+        .category-tab:hover { border-color: #16a085; color: #16a085; }
+        .category-tab.active { background: #16a085; color: #fff; border-color: #16a085; }
+        .tip { background: #e8f4fd; border-left: 4px solid #3498db; padding: 12px 16px; margin-top: 16px; border-radius: 0 6px 6px 0; font-size: 13px; }
+        .recent-converts { margin-top: 16px; }
+        .recent-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid #eee; font-size: 13px; }
+        .recent-item:last-child { border: none; }
+        .recent-from { color: #666; }
+        .recent-to { color: #16a085; font-weight: 600; }
     </style>
 </head>
 <body>
 <div class="container">
     <a href="/" class="back-link">← 返回首页</a>
-    <h1>🔄 工程单位换算</h1>
+    <h1>🔄 在线单位换算</h1>
 
     <div class="card">
-        <h2>热量 / 能量</h2>
+        <div class="category-tabs" id="categoryTabs"></div>
+
         <div class="form-group">
-            <label>输入值</label>
-            <input type="number" id="heatIn" oninput="convertHeat()" placeholder="输入数值">
+            <label>精度（小数位数）</label>
+            <input type="number" id="precision" value="6" min="0" max="15" oninput="doConvert()">
         </div>
+
         <div class="row">
             <div class="form-group">
-                <label>从</label>
-                <select id="heatFrom" onchange="convertHeat()">
-                    <option value="kcal">kcal/h</option>
-                    <option value="kw" selected>kW</option>
-                    <option value="btu">BTU/h</option>
-                    <option value="mw">MW</option>
-                    <option value="gj">GJ/h</option>
-                </select>
+                <label>数据</label>
+                <input type="number" id="inputValue" oninput="doConvert()" placeholder="输入数值">
             </div>
-            <span class="arrow">→</span>
-            <div class="form-group">
-                <label>到</label>
-                <select id="heatTo" onchange="convertHeat()">
-                    <option value="kcal" selected>kcal/h</option>
-                    <option value="kw">kW</option>
-                    <option value="btu">BTU/h</option>
-                    <option value="mw">MW</option>
-                    <option value="gj">GJ/h</option>
-                </select>
+            <div class="form-group" style="flex:0 0 160px;">
+                <label>单位</label>
+                <select id="fromUnit" onchange="doConvert()"></select>
             </div>
         </div>
-        <div class="result-val" id="heatResult">—</div>
-    </div>
 
-    <div class="card">
-        <h2>压力</h2>
-        <div class="form-group">
-            <label>输入值</label>
-            <input type="number" id="pressIn" oninput="convertPress()" placeholder="输入数值">
-        </div>
         <div class="row">
             <div class="form-group">
-                <label>从</label>
-                <select id="pressFrom" onchange="convertPress()">
-                    <option value="pa">Pa</option>
-                    <option value="kpa">kPa</option>
-                    <option value="mpa" selected>MPa</option>
-                    <option value="bar">bar</option>
-                    <option value="atm">atm</option>
-                    <option value="psi">psi</option>
-                    <option value="kgcm2">kg/cm²</option>
-                </select>
+                <label>结果</label>
+                <input type="text" id="resultValue" readonly placeholder="—">
             </div>
-            <span class="arrow">→</span>
-            <div class="form-group">
-                <label>到</label>
-                <select id="pressTo" onchange="convertPress()">
-                    <option value="pa">Pa</option>
-                    <option value="kpa">kPa</option>
-                    <option value="mpa">MPa</option>
-                    <option value="bar" selected>bar</option>
-                    <option value="atm">atm</option>
-                    <option value="psi">psi</option>
-                    <option value="kgcm2">kg/cm²</option>
-                </select>
+            <div class="form-group" style="flex:0 0 160px;">
+                <label>单位</label>
+                <select id="toUnit" onchange="doConvert()"></select>
             </div>
         </div>
-        <div class="result-val" id="pressResult">—</div>
+
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="swapUnits()">交换</button>
+            <button class="btn" onclick="copyResult()">复制</button>
+            <button class="btn" onclick="clearAll()">清空</button>
+            <button class="btn btn-pdf" onclick="downloadPDF()">导出 PDF</button>
+        </div>
     </div>
 
-    <div class="card">
-        <h2>常用换算速查</h2>
-        <table>
-            <tr><th>类型</th><th>换算关系</th></tr>
-            <tr><td>热量</td><td>1 kW = 860 kcal/h = 3412 BTU/h</td></tr>
-            <tr><td>热量</td><td>1 MW = 1000 kW = 86 万 kcal/h</td></tr>
-            <tr><td>压力</td><td>1 MPa = 10 bar = 10.2 kg/cm² = 145 psi</td></tr>
-            <tr><td>压力</td><td>1 atm = 101.325 kPa = 1.01325 bar</td></tr>
-            <tr><td>温度</td><td>°C = (°F - 32) × 5/9；K = °C + 273.15</td></tr>
-            <tr><td>流量</td><td>1 m³/h = 1000 L/h = 4.403 USGPM</td></tr>
-            <tr><td>面积</td><td>1 m² = 10.764 ft²</td></tr>
-            <tr><td>长度</td><td>1 inch = 25.4 mm；1 ft = 304.8 mm</td></tr>
-        </table>
+    <div class="tip">
+        <strong>说明</strong>：本工具支持化工工业炉设计中常用的各种单位换算，涵盖热量、压力、温度、流量、长度、面积、体积、质量、数据存储等类别。输入数值后自动实时转换。
     </div>
 </div>
 
 <script>
-const heatToKW = { kcal: 1/860, kw: 1, btu: 1/3412, mw: 1000, gj: 1000/3.6 };
-function convertHeat() {
-    const v = parseFloat(document.getElementById('heatIn').value);
-    if (isNaN(v)) { document.getElementById('heatResult').textContent = '—'; return; }
-    const kw = v * heatToKW[document.getElementById('heatFrom').value];
-    const out = kw / heatToKW[document.getElementById('heatTo').value];
-    document.getElementById('heatResult').textContent = out.toPrecision(6);
+// ==================== 单位数据库 ====================
+// 每个类别: { units: [{id, name, factor}], factor 是到基准单位的换算系数
+const UNIT_DB = {
+    '热量/能量': {
+        units: [
+            {id:'kw',    name:'kW',            factor:1},
+            {id:'w',     name:'W',             factor:0.001},
+            {id:'mw',    name:'MW',            factor:1000},
+            {id:'kcal',  name:'kcal/h',        factor:1/860},
+            {id:'kcal_s',name:'kcal/s',        factor:4186.8},
+            {id:'btu',   name:'BTU/h',         factor:1/3412.14},
+            {id:'btu_s', name:'BTU/s',          factor:1055.06},
+            {id:'gj',    name:'GJ/h',          factor:1000/3.6},
+            {id:'t蒸汽', name:'t/h 蒸汽(潜热)', factor:1000*2257/3600},
+            {id:'hp',    name:'马力(hp)',       factor:0.7457},
+        ],
+        formula: '1 kW = 860 kcal/h = 3412 BTU/h = 3.6 MJ/h'
+    },
+    '功率': {
+        units: [
+            {id:'kw',    name:'kW',            factor:1},
+            {id:'w',     name:'W',             factor:0.001},
+            {id:'mw',    name:'MW',            factor:1000},
+            {id:'hp',    name:'马力(hp)',       factor:0.7457},
+            {id:'ps',    name:'公制马力(PS)',    factor:0.7355},
+            {id:'btu_h', name:'BTU/h',         factor:0.00029307},
+            {id:'ftlb',  name:'ft·lbf/s',      factor:0.00135582},
+        ],
+        formula: '1 kW = 1.341 hp = 1.360 PS'
+    },
+    '压力': {
+        units: [
+            {id:'pa',    name:'Pa',            factor:1},
+            {id:'kpa',   name:'kPa',           factor:1000},
+            {id:'mpa',   name:'MPa',           factor:1e6},
+            {id:'bar',   name:'bar',           factor:1e5},
+            {id:'mbar',  name:'mbar',          factor:100},
+            {id:'atm',   name:'atm',           factor:101325},
+            {id:'psi',   name:'psi',           factor:6894.76},
+            {id:'kgcm2', name:'kg/cm²',        factor:98066.5},
+            {id:'mmhg',  name:'mmHg',          factor:133.322},
+            {id:'torr',  name:'Torr',          factor:133.322},
+            {id:'inhg',  name:'inHg',          factor:3386.39},
+            {id:'mh2o',  name:'mH₂O',          factor:9806.65},
+        ],
+        formula: '1 MPa = 10 bar = 145 psi = 10.2 kg/cm²'
+    },
+    '温度': {
+        units: [
+            {id:'c',  name:'°C (摄氏度)',     factor:'special'},
+            {id:'f',  name:'°F (华氏度)',     factor:'special'},
+            {id:'k',  name:'K (开尔文)',      factor:'special'},
+            {id:'r',  name:'°R (兰氏度)',     factor:'special'},
+        ],
+        special: true,
+        formula: '°C = (°F − 32) × 5/9；K = °C + 273.15'
+    },
+    '流量': {
+        units: [
+            {id:'m3h',  name:'m³/h',          factor:1},
+            {id:'m3s',  name:'m³/s',          factor:3600},
+            {id:'ls',   name:'L/s',           factor:3.6},
+            {id:'lmin', name:'L/min',         factor:0.06},
+            {id:'lm',   name:'L/h (mL/s)',    factor:0.001},
+            {id:'gpm',  name:'USGPM (美加仑/分)', factor:0.227125},
+            {id:'igpm', name:'IGPM (英加仑/分)',  factor:0.272766},
+            {id:'kg_s', name:'kg/s (质量流量)',   factor:3600},
+            {id:'t_h',  name:'t/h',           factor:1000},
+        ],
+        formula: '1 m³/h = 4.403 USGPM = 16.67 L/min'
+    },
+    '长度': {
+        units: [
+            {id:'km',  name:'km (千米)',      factor:1000},
+            {id:'m',   name:'m (米)',         factor:1},
+            {id:'cm',  name:'cm (厘米)',      factor:0.01},
+            {id:'mm',  name:'mm (毫米)',      factor:0.001},
+            {id:'um',  name:'μm (微米)',      factor:1e-6},
+            {id:'nm',  name:'nm (纳米)',      factor:1e-9},
+            {id:'in',  name:'inch (英寸)',    factor:0.0254},
+            {id:'ft',  name:'ft (英尺)',      factor:0.3048},
+            {id:'yd',  name:'yd (码)',        factor:0.9144},
+            {id:'mi',  name:'mile (英里)',    factor:1609.344},
+        ],
+        formula: '1 inch = 25.4 mm；1 ft = 304.8 mm'
+    },
+    '面积': {
+        units: [
+            {id:'m2',  name:'m²',             factor:1},
+            {id:'cm2', name:'cm²',            factor:1e-4},
+            {id:'mm2', name:'mm²',            factor:1e-6},
+            {id:'km2', name:'km²',            factor:1e6},
+            {id:'ha',  name:'公顷(ha)',       factor:10000},
+            {id:'ac',  name:'英亩(acre)',      factor:4046.86},
+            {id:'ft2', name:'ft²',            factor:0.092903},
+            {id:'in2', name:'in²',            factor:6.4516e-4},
+            {id:'yd2', name:'yd²',            factor:0.836127},
+        ],
+        formula: '1 m² = 10.764 ft² = 1550 in²'
+    },
+    '体积/容量': {
+        units: [
+            {id:'m3',   name:'m³',            factor:1},
+            {id:'l',    name:'L (升)',         factor:0.001},
+            {id:'ml',   name:'mL (毫升)',      factor:1e-6},
+            {id:'cm3',  name:'cm³ (cc)',       factor:1e-6},
+            {id:'ft3',  name:'ft³',           factor:0.0283168},
+            {id:'in3',  name:'in³',           factor:1.6387e-5},
+            {id:'bbl',  name:'bbl (桶)',       factor:0.158987},
+            {id:'gal',  name:'US gal (美加仑)', factor:0.00378541},
+            {id:'igal', name:'UK gal (英加仑)', factor:0.00454609},
+        ],
+        formula: '1 m³ = 1000 L = 6.29 bbl = 264.2 US gal'
+    },
+    '质量/重量': {
+        units: [
+            {id:'t',   name:'t (吨)',          factor:1000},
+            {id:'kg',  name:'kg (千克)',       factor:1},
+            {id:'g',   name:'g (克)',          factor:0.001},
+            {id:'mg',  name:'mg (毫克)',       factor:1e-6},
+            {id:'lb',  name:'lb (磅)',         factor:0.453592},
+            {id:'oz',  name:'oz (盎司)',       factor:0.0283495},
+            {id:'st',  name:'st (英石)',       factor:6.35029},
+            {id:'jin', name:'斤 (市斤)',       factor:0.5},
+        ],
+        formula: '1 kg = 2.205 lb = 2 斤'
+    },
+    '速度': {
+        units: [
+            {id:'ms',   name:'m/s',           factor:1},
+            {id:'kmh',  name:'km/h',          factor:1/3.6},
+            {id:'mph',  name:'mph (英里/时)',  factor:0.44704},
+            {id:'kn',   name:'knot (节)',      factor:0.514444},
+            {id:'fts',  name:'ft/s',          factor:0.3048},
+            {id:'mach', name:'马赫(Mach)',     factor:340.29},
+        ],
+        formula: '1 m/s = 3.6 km/h = 2.237 mph'
+    },
+    '密度': {
+        units: [
+            {id:'kgm3',  name:'kg/m³',       factor:1},
+            {id:'gcm3',  name:'g/cm³',       factor:1000},
+            {id:'kgL',   name:'kg/L',        factor:1000},
+            {id:'lbft3', name:'lb/ft³',      factor:16.0185},
+            {id:'lbgal', name:'lb/US gal',   factor:119.826},
+            {id:'apil',  name:'°API',        factor:'special'},
+        ],
+        special: true,
+        formula: '1 g/cm³ = 1000 kg/m³ = 62.43 lb/ft³'
+    },
+    '粘度(动力)': {
+        units: [
+            {id:'pas',  name:'Pa·s',          factor:1},
+            {id:'mpas', name:'mPa·s (cP)',    factor:0.001},
+            {id:'pois', name:'P (Poise)',     factor:0.1},
+            {id:'lbfs', name:'lb/(ft·s)',     factor:1.48816},
+            {id:'lbft', name:'lb/(ft·h)',     factor:0.00041338},
+        ],
+        formula: '1 Pa·s = 1000 cP = 10 P'
+    },
+    '热通量': {
+        units: [
+            {id:'wm2',  name:'W/m²',          factor:1},
+            {id:'kwm2', name:'kW/m²',         factor:1000},
+            {id:'mwm2', name:'MW/m²',         factor:1e6},
+            {id:'btuft2h', name:'BTU/(ft²·h)', factor:3.15459},
+            {id:'kcalm2h', name:'kcal/(m²·h)', factor:1.16279},
+        ],
+        formula: '1 W/m² = 0.317 BTU/(ft²·h)'
+    },
+    '导热系数': {
+        units: [
+            {id:'wmk',  name:'W/(m·K)',       factor:1},
+            {id:'kwmk', name:'kW/(m·K)',      factor:1000},
+            {id:'kcalmhk', name:'kcal/(m·h·K)', factor:1.16279},
+            {id:'btuftfhf', name:'BTU/(ft·h·°F)', factor:1.73074},
+            {id:'calcmsk', name:'cal/(cm·s·K)', factor:418.4},
+        ],
+        formula: '1 W/(m·K) = 0.578 BTU/(ft·h·°F)'
+    },
+    '数据/存储': {
+        units: [
+            {id:'bit',  name:'bit',           factor:1},
+            {id:'byte', name:'Byte',          factor:8},
+            {id:'kb',   name:'KB (10³)',      factor:8000},
+            {id:'mb',   name:'MB (10⁶)',      factor:8e6},
+            {id:'gb',   name:'GB (10⁹)',      factor:8e9},
+            {id:'tb',   name:'TB (10¹²)',     factor:8e12},
+            {id:'kib',  name:'KiB (2¹⁰)',     factor:8192},
+            {id:'mib',  name:'MiB (2²⁰)',     factor:8388608},
+            {id:'gib',  name:'GiB (2³⁰)',     factor:8589934592},
+            {id:'tib',  name:'TiB (2⁴⁰)',     factor:8796093022208},
+        ],
+        formula: '1 Byte = 8 bit；1 KB = 1000 Byte；1 KiB = 1024 Byte'
+    },
+    '时间': {
+        units: [
+            {id:'s',  name:'s (秒)',           factor:1},
+            {id:'ms', name:'ms (毫秒)',        factor:0.001},
+            {id:'us', name:'μs (微秒)',        factor:1e-6},
+            {id:'min',name:'min (分)',         factor:60},
+            {id:'h',  name:'h (时)',           factor:3600},
+            {id:'d',  name:'d (天)',           factor:86400},
+            {id:'wk', name:'week (周)',        factor:604800},
+        ],
+        formula: '1 h = 60 min = 3600 s'
+    },
+};
+
+// ==================== 温度特殊转换 ====================
+function tempConvert(val, from, to) {
+    if (from === to) return val;
+    // 先转到 °C
+    let c;
+    switch (from) {
+        case 'c': c = val; break;
+        case 'f': c = (val - 32) * 5/9; break;
+        case 'k': c = val - 273.15; break;
+        case 'r': c = (val - 491.67) * 5/9; break;
+    }
+    // 从 °C 转到目标
+    switch (to) {
+        case 'c': return c;
+        case 'f': return c * 9/5 + 32;
+        case 'k': return c + 273.15;
+        case 'r': return (c + 273.15) * 9/5;
+    }
 }
 
-const pressToMPa = { pa: 1e-6, kpa: 1e-3, mpa: 1, bar: 0.1, atm: 0.101325, psi: 0.00689476, kgcm2: 0.0980665 };
-function convertPress() {
-    const v = parseFloat(document.getElementById('pressIn').value);
-    if (isNaN(v)) { document.getElementById('pressResult').textContent = '—'; return; }
-    const mpa = v * pressToMPa[document.getElementById('pressFrom').value];
-    const out = mpa / pressToMPa[document.getElementById('pressTo').value];
-    document.getElementById('pressResult').textContent = out.toPrecision(6);
+// ==================== 状态管理 ====================
+let currentCategory = '热量/能量';
+
+// ==================== 初始化 ====================
+function init() {
+    const tabs = document.getElementById('categoryTabs');
+    tabs.innerHTML = '';
+    Object.keys(UNIT_DB).forEach(cat => {
+        const tab = document.createElement('span');
+        tab.className = 'category-tab' + (cat === currentCategory ? ' active' : '');
+        tab.textContent = cat;
+        tab.onclick = () => switchCategory(cat);
+        tabs.appendChild(tab);
+    });
+    populateUnits();
 }
+
+function switchCategory(cat) {
+    currentCategory = cat;
+    document.querySelectorAll('.category-tab').forEach(t => {
+        t.classList.toggle('active', t.textContent === cat);
+    });
+    populateUnits();
+    document.getElementById('resultValue').value = '';
+}
+
+function populateUnits() {
+    const db = UNIT_DB[currentCategory];
+    const fromSel = document.getElementById('fromUnit');
+    const toSel = document.getElementById('toUnit');
+    fromSel.innerHTML = '';
+    toSel.innerHTML = '';
+    db.units.forEach((u, i) => {
+        const o1 = document.createElement('option');
+        o1.value = u.id; o1.textContent = u.name;
+        fromSel.appendChild(o1);
+        const o2 = document.createElement('option');
+        o2.value = u.id; o2.textContent = u.name;
+        toSel.appendChild(o2);
+    });
+    // 默认: 第一个 → 第二个
+    if (db.units.length >= 2) toSel.selectedIndex = 1;
+}
+
+// ==================== 核心换算 ====================
+function doConvert() {
+    const db = UNIT_DB[currentCategory];
+    const val = parseFloat(document.getElementById('inputValue').value);
+    const from = document.getElementById('fromUnit').value;
+    const to = document.getElementById('toUnit').value;
+    const prec = parseInt(document.getElementById('precision').value) || 6;
+
+    if (isNaN(val)) {
+        document.getElementById('resultValue').value = '';
+        return;
+    }
+
+    let result;
+    if (db.special && currentCategory === '温度') {
+        result = tempConvert(val, from, to);
+    } else if (db.special && currentCategory === '密度' && (from === 'apil' || to === 'apil')) {
+        result = apiConvert(val, from, to);
+    } else {
+        const fromUnit = db.units.find(u => u.id === from);
+        const toUnit = db.units.find(u => u.id === to);
+        const baseVal = val * fromUnit.factor;
+        result = baseVal / toUnit.factor;
+    }
+
+    // 格式化
+    const formatted = formatNumber(result, prec);
+    document.getElementById('resultValue').value = formatted;
+}
+
+function apiConvert(val, from, to) {
+    // °API = 141.5 / SG - 131.5；SG = 141.5 / (°API + 131.5)
+    if (from === 'apil' && to === 'apil') return val;
+    if (from === 'apil') {
+        const sg = 141.5 / (val + 131.5);
+        return sg; // 返回 SG (kg/L)
+    }
+    if (to === 'apil') {
+        const sg = val; // 输入为 kg/L (SG)
+        return 141.5 / sg - 131.5;
+    }
+    return val;
+}
+
+function formatNumber(num, decimals) {
+    if (num === 0) return '0';
+    const abs = Math.abs(num);
+    // 对于极大或极小的数用科学记数法
+    if (abs >= 1e12 || (abs > 0 && abs < 1e-6)) {
+        return num.toExponential(decimals);
+    }
+    // 普通数字：去除尾部0
+    const fixed = num.toFixed(decimals);
+    return parseFloat(fixed).toString();
+}
+
+// ==================== 操作按钮 ====================
+function swapUnits() {
+    const fromSel = document.getElementById('fromUnit');
+    const toSel = document.getElementById('toUnit');
+    const tmp = fromSel.value;
+    fromSel.value = toSel.value;
+    toSel.value = tmp;
+    doConvert();
+}
+
+function copyResult() {
+    const val = document.getElementById('resultValue').value;
+    if (!val) return;
+    navigator.clipboard.writeText(val).then(() => {
+        const btn = event.target;
+        btn.textContent = '已复制 ✓';
+        setTimeout(() => btn.textContent = '复制', 1500);
+    });
+}
+
+function clearAll() {
+    document.getElementById('inputValue').value = '';
+    document.getElementById('resultValue').value = '';
+    document.getElementById('precision').value = '6';
+}
+
+// ==================== PDF 导出 ====================
+function downloadPDF() {
+    const val = document.getElementById('inputValue').value;
+    if (!val) { alert('请先输入数值！'); return; }
+
+    const fromSel = document.getElementById('fromUnit');
+    const toSel = document.getElementById('toUnit');
+    const result = document.getElementById('resultValue').value;
+    const prec = document.getElementById('precision').value;
+
+    const fromName = fromSel.options[fromSel.selectedIndex].text;
+    const toName = toSel.options[toSel.selectedIndex].text;
+    const db = UNIT_DB[currentCategory];
+
+    var ACCENT = '#16a085';
+    var FONT = '"Microsoft YaHei","SimHei",Arial,sans-serif';
+    var HEADER_BG = '#e8f8f5';
+
+    var container = document.createElement('div');
+    container.style.cssText = 'padding:30px 36px;font-family:' + FONT + ';color:#1a1a2e;line-height:1.5;background:#fff;width:720px;';
+    container.innerHTML =
+        '<div style="text-align:center;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid ' + ACCENT + ';">' +
+        '<h1 style="font-size:18px;margin:0 0 4px;color:' + ACCENT + ';">单位换算报告</h1>' +
+        '<p style="margin:0;font-size:11px;color:#666;">类别：' + currentCategory + '  |  计算日期：' + new Date().toLocaleString('zh-CN') + '</p></div>' +
+        '<div style="margin-bottom:14px;"><div style="background:' + HEADER_BG + ';padding:5px 10px;font-weight:700;color:#2c3e50;font-size:13px;border-radius:4px 4px 0 0;">换算结果</div>' +
+        '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+        '<tr><td style="padding:6px 10px;color:#555;width:35%;border-bottom:1px solid #eee;">输入值</td><td style="padding:6px 10px;font-weight:600;border-bottom:1px solid #eee;">' + val + ' ' + fromName + '</td></tr>' +
+        '<tr><td style="padding:6px 10px;color:#555;border-bottom:1px solid #eee;">结果</td><td style="padding:6px 10px;font-weight:700;color:' + ACCENT + ';font-size:15px;border-bottom:1px solid #eee;">' + result + ' ' + toName + '</td></tr>' +
+        '<tr><td style="padding:6px 10px;color:#555;">精度</td><td style="padding:6px 10px;">' + prec + ' 位小数</td></tr>' +
+        '</table></div>' +
+        '<div style="background:#f0f9f4;border-left:4px solid ' + ACCENT + ';padding:10px 14px;font-size:12px;color:#555;border-radius:0 4px 4px 0;">' +
+        '<strong>换算公式：</strong> ' + (db.formula || '') + '</div>';
+
+    document.body.appendChild(container);
+
+    html2canvas(container, {scale:2, useCORS:true, backgroundColor:'#ffffff'}).then(function(canvas) {
+        document.body.removeChild(container);
+        var jsPDF = window.jspdf.jsPDF;
+        var pdf = new jsPDF({unit:'mm', format:'a4', orientation:'portrait'});
+        var pageW = pdf.internal.pageSize.getWidth(), pageH = pdf.internal.pageSize.getHeight();
+        var m = 10, cw = pageW - m*2, ih = (canvas.height/canvas.width)*cw;
+        if (m + ih + 10 <= pageH) {
+            pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',m,m,cw,ih);
+        } else {
+            var avail = pageH - m*2, slices = Math.ceil(ih/avail), sh = canvas.height/slices;
+            for (var s=0;s<slices;s++){
+                if(s>0) pdf.addPage();
+                var sc = document.createElement('canvas');
+                sc.width = canvas.width; sc.height = Math.round(sh);
+                sc.getContext('2d').drawImage(canvas,0,Math.round(s*sh),canvas.width,sc.height,0,0,canvas.width,sc.height);
+                pdf.addImage(sc.toDataURL('image/jpeg',0.95),'JPEG',m,m,cw,(sc.height/sc.width)*cw);
+            }
+        }
+        pdf.setFontSize(8); pdf.setTextColor(180,180,180);
+        pdf.text('wison0727.github.io',pageW/2,pageH-6,{align:'center'});
+        var fname = '单位换算_' + currentCategory + '_' + new Date().toISOString().slice(0,10) + '.pdf';
+        var a = document.createElement('a'); a.href = URL.createObjectURL(pdf.output('blob')); a.download = fname;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    });
+}
+
+// ==================== 启动 ====================
+init();
 </script>
 </body>
 </html>
