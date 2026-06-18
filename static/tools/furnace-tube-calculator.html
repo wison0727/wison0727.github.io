@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>加热炉炉管强度计算器 - SH/T 3037</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      color: #fff;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%; left: -50%;
+      width: 200%; height: 200%;
+      background: radial-gradient(circle at 30% 50%, rgba(120,80,255,0.12) 0%, transparent 50%),
+                  radial-gradient(circle at 70% 80%, rgba(255,80,150,0.08) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #a78bfa, #f472b6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+
+    header .subtitle {
+      font-size: 14px;
+      color: rgba(255,255,255,0.45);
+    }
+
+    .panel {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 28px;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+
+    .panel-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.85);
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .panel-title span {
+      color: #a78bfa;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      color: rgba(255,255,255,0.6);
+      margin-bottom: 6px;
+    }
+
+    .form-group label .unit {
+      color: rgba(255,255,255,0.35);
+      font-weight: 400;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      height: 42px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 0 14px;
+      color: #fff;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      border-color: #7c5cfc;
+      box-shadow: 0 0 0 3px rgba(124,92,252,0.15);
+    }
+
+    .form-group select {
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 36px;
+    }
+
+    .form-group select option {
+      background: #1a1a3e;
+      color: #fff;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 16px;
+    }
+
+    .form-row .form-group {
+      flex: 1;
+    }
+
+    .btn {
+      height: 44px;
+      border-radius: 12px;
+      border: none;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      outline: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 24px;
+    }
+
+    .btn:active { transform: scale(0.96); }
+
+    .btn-calc {
+      background: linear-gradient(135deg, #7c5cfc, #a855f7);
+      color: #fff;
+      box-shadow: 0 4px 15px rgba(124,92,252,0.3);
+    }
+    .btn-calc:hover { box-shadow: 0 4px 20px rgba(124,92,252,0.5); }
+
+    .btn-export {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #fff;
+      box-shadow: 0 4px 15px rgba(34,197,94,0.3);
+    }
+    .btn-export:hover { box-shadow: 0 4px 20px rgba(34,197,94,0.5); }
+
+    .btn-reset {
+      background: rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.7);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .btn-reset:hover { background: rgba(255,255,255,0.14); }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    /* Result Report */
+    .report {
+      background: rgba(0,0,0,0.35);
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.06);
+      padding: 24px;
+      font-family: 'Consolas', 'SF Mono', monospace;
+      font-size: 13.5px;
+      line-height: 1.75;
+      white-space: pre-wrap;
+      color: rgba(255,255,255,0.8);
+      max-height: 520px;
+      overflow-y: auto;
+    }
+
+    .report::-webkit-scrollbar { width: 6px; }
+    .report::-webkit-scrollbar-track { background: transparent; }
+    .report::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+
+    .report .h-title { color: #a78bfa; font-weight: 700; font-size: 14px; }
+    .report .h-section { color: #f472b6; font-weight: 600; }
+    .report .h-pass { color: #34d399; font-weight: 600; }
+    .report .h-fail { color: #f87171; font-weight: 600; }
+    .report .h-val { color: #fbbf24; }
+
+    .empty-report {
+      text-align: center;
+      color: rgba(255,255,255,0.3);
+      padding: 60px 0;
+      font-size: 15px;
+      font-family: inherit;
+    }
+
+    /* Material info bar */
+    .material-info {
+      background: rgba(124,92,252,0.1);
+      border-radius: 10px;
+      border: 1px solid rgba(124,92,252,0.2);
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.7);
+      display: none;
+    }
+
+    .material-info.show { display: block; }
+    .material-info strong { color: #a78bfa; }
+
+    .checkbox-group {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 16px;
+    }
+
+    .checkbox-group label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.6);
+      cursor: pointer;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: #7c5cfc;
+      cursor: pointer;
+    }
+
+    @media (max-width: 768px) {
+      .grid-2 { grid-template-columns: 1fr; }
+      .container { padding: 20px 14px; }
+      header h1 { font-size: 22px; }
+      .form-row { flex-direction: column; gap: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>加热炉炉管强度计算器</h1>
+      <div class="subtitle">依据 SH/T 3037 标准 | 管式加热炉炉管壁厚及强度校核</div>
+    </header>
+
+    <div class="grid-2">
+      <!-- Left: Input -->
+      <div>
+        <div class="panel">
+          <div class="panel-title"><span>01</span> 基本参数</div>
+          <div class="form-group">
+            <label>材料选择 <span class="unit">（自动填充许用应力，或手动输入）</span></label>
+            <select id="materialSelect" onchange="onMaterialChange()">
+              <option value="">-- 手动输入材料参数 --</option>
+              <option value="20G">20G 碳钢 (≤450°C)</option>
+              <option value="15CrMo">15CrMo (≤540°C)</option>
+              <option value="12Cr5Mo" selected>12Cr5Mo / SA-335 P5 (≤650°C)</option>
+              <option value="12Cr1MoV">12Cr1MoV (≤580°C)</option>
+              <option value="Cr9Mo">Cr9Mo / SA-335 P9 (≤650°C)</option>
+              <option value="TP347H">TP347H (≤800°C)</option>
+              <option value="HK40">HK40 25Cr-20Ni (≤850°C)</option>
+              <option value="HP">HP 26Cr-35Ni-Nb (≤1000°C)</option>
+              <option value="HP-Nb">HP-Nb 微合金化 (≤1050°C)</option>
+            </select>
+          </div>
+          <div id="materialInfo" class="material-info"></div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>设计压力 P <span class="unit">MPa</span></label>
+              <input type="number" id="pressure" step="0.01" value="5.0">
+            </div>
+            <div class="form-group">
+              <label>设计温度 T <span class="unit">°C</span></label>
+              <input type="number" id="temperature" step="1" value="500">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>管外径 Do <span class="unit">mm</span></label>
+              <select id="tubeOD" onchange="onTubeODChange()">
+                <option value="">自定义</option>
+                <option value="48">Φ48</option>
+                <option value="60">Φ60</option>
+                <option value="76">Φ76</option>
+                <option value="89">Φ89</option>
+                <option value="102" selected>Φ102</option>
+                <option value="114">Φ114</option>
+                <option value="127">Φ127</option>
+                <option value="141">Φ141</option>
+                <option value="152">Φ152</option>
+                <option value="168">Φ168</option>
+                <option value="194">Φ194</option>
+              </select>
+              <input type="number" id="tubeODInput" step="0.1" value="102" style="margin-top:6px;">
+            </div>
+            <div class="form-group">
+              <label>许用应力 [σ] <span class="unit">MPa</span></label>
+              <input type="number" id="allowableStress" step="0.1" placeholder="由材料自动填充或手动输入">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>焊缝系数 φ</label>
+              <select id="weldEff">
+                <option value="1.0">1.00 — 无缝管</option>
+                <option value="0.95">0.95 — 无缝管（严格检验）</option>
+                <option value="0.85">0.85 — 有焊缝管</option>
+                <option value="0.7">0.70 — 有焊缝管（一般检验）</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>腐蚀裕量 C <span class="unit">mm</span></label>
+              <input type="number" id="corrosion" step="0.1" value="0" min="0" max="5">
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title"><span>02</span> 校核参数（可选）</div>
+          <div class="checkbox-group">
+            <label><input type="checkbox" id="enableMAWP" checked> MAWP 校核</label>
+            <label><input type="checkbox" id="enableWallTemp" checked> 管壁温度校核</label>
+            <label><input type="checkbox" id="enableBending" checked> 弯曲应力校核</label>
+          </div>
+
+          <div id="mawpSection">
+            <div class="form-group">
+              <label>名义壁厚 t_nom <span class="unit">mm（用于 MAWP 反算）</span></label>
+              <input type="number" id="nomWall" step="0.1" value="8.0">
+            </div>
+            <div class="form-group">
+              <label>温度系数 Y</label>
+              <select id="tempCoeff">
+                <option value="0.4">0.40 — 铁素体钢 (T ≤ 480°C)</option>
+                <option value="0.5">0.50 — 中间温度区</option>
+                <option value="0.7">0.70 — 奥氏体钢</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="wallTempSection" style="display:none;">
+            <div class="form-row">
+              <div class="form-group">
+                <label>介质温度 Tf <span class="unit">°C</span></label>
+                <input type="number" id="fluidTemp" step="1" value="420">
+              </div>
+              <div class="form-group">
+                <label>热强度 q <span class="unit">W/m²</span></label>
+                <input type="number" id="heatFlux" step="1" value="35000">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>内膜传热系数 hi <span class="unit">W/(m²·K)</span></label>
+                <input type="number" id="filmCoeff" step="1" value="1500">
+              </div>
+              <div class="form-group">
+                <label>导热系数 λ <span class="unit">W/(m·K)</span></label>
+                <input type="number" id="thermalCond" step="0.1" value="30">
+              </div>
+            </div>
+          </div>
+
+          <div id="bendingSection" style="display:none;">
+            <div class="form-row">
+              <div class="form-group">
+                <label>弯矩 M <span class="unit">N·mm</span></label>
+                <input type="number" id="bendMoment" step="1" value="500000">
+              </div>
+              <div class="form-group">
+                <label>截面模量 Z <span class="unit">mm³</span></label>
+                <input type="number" id="sectionMod" step="1" value="12000">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn btn-calc" onclick="calculate()">计算</button>
+          <button class="btn btn-export" onclick="exportPDF()">导出 PDF</button>
+          <button class="btn btn-reset" onclick="resetForm()">重置</button>
+        </div>
+      </div>
+
+      <!-- Right: Report -->
+      <div>
+        <div class="panel" style="height:100%;">
+          <div class="panel-title"><span>03</span> 计算报告</div>
+          <div class="report" id="report">
+            <div class="empty-report">输入参数后点击「计算」查看报告</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ========== 材料库 ==========
+    const MATERIAL_DB = {
+      '20G': {
+        name: '20G 碳钢', standard: 'GB 5310', maxTemp: 450, type: 'ferritic',
+        stress: { 300:130, 350:118, 400:106, 425:93, 450:79 }
+      },
+      '15CrMo': {
+        name: '15CrMo', standard: 'GB 5310', maxTemp: 540, type: 'ferritic',
+        stress: { 300:126, 350:120, 400:112, 450:93, 500:72, 525:61, 540:51 }
+      },
+      '12Cr5Mo': {
+        name: '12Cr5Mo / SA-335 P5', standard: 'GB 9948', maxTemp: 650, type: 'ferritic',
+        stress: { 300:117, 350:115, 400:112, 450:105, 500:95, 540:78, 580:64, 600:52, 630:38, 650:30 }
+      },
+      '12Cr1MoV': {
+        name: '12Cr1MoV', standard: 'GB 5310', maxTemp: 580, type: 'ferritic',
+        stress: { 300:120, 350:116, 400:110, 450:100, 500:88, 540:72, 580:55 }
+      },
+      'Cr9Mo': {
+        name: 'Cr9Mo / SA-335 P9', standard: 'ASME', maxTemp: 650, type: 'ferritic',
+        stress: { 300:117, 350:115, 400:112, 450:108, 500:100, 540:87, 580:72, 600:58, 630:43, 650:35 }
+      },
+      'TP347H': {
+        name: 'TP347H 不锈钢', standard: 'ASME SA-213', maxTemp: 800, type: 'austenitic',
+        stress: { 300:120, 350:118, 400:114, 450:108, 500:100, 540:95, 580:89, 600:80, 650:68, 700:52, 750:38, 800:22 }
+      },
+      'HK40': {
+        name: 'HK40 25Cr-20Ni', standard: '铸造合金', maxTemp: 850, type: 'austenitic',
+        stress: { 300:90, 400:87, 450:85, 500:82, 540:80, 600:72, 650:65, 700:52, 750:38, 800:28, 850:18 }
+      },
+      'HP': {
+        name: 'HP 26Cr-35Ni-Nb', standard: '铸造合金', maxTemp: 1000, type: 'austenitic',
+        stress: { 300:95, 400:92, 450:90, 500:88, 540:85, 600:78, 650:70, 700:58, 750:42, 800:32, 850:24, 900:16, 950:10, 1000:7 }
+      },
+      'HP-Nb': {
+        name: 'HP-Nb 微合金化', standard: '铸造合金', maxTemp: 1050, type: 'austenitic',
+        stress: { 300:98, 400:95, 450:93, 500:90, 540:88, 600:82, 650:74, 700:62, 750:48, 800:38, 850:28, 900:20, 950:14, 1000:9, 1050:6 }
+      }
+    };
+
+    // ========== 工具函数 ==========
+    function interpolateStress(material, temp) {
+      const m = MATERIAL_DB[material];
+      if (!m) return null;
+      const temps = Object.keys(m.stress).map(Number).sort((a,b) => a - b);
+      if (temp < temps[0]) return m.stress[temps[0]];
+      if (temp > temps[temps.length - 1]) return null;
+      for (let i = 0; i < temps.length - 1; i++) {
+        if (temp >= temps[i] && temp <= temps[i + 1]) {
+          const ratio = (temp - temps[i]) / (temps[i + 1] - temps[i]);
+          return m.stress[temps[i]] + ratio * (m.stress[temps[i + 1]] - m.stress[temps[i]]);
+        }
+      }
+      return m.stress[temps[temps.length - 1]];
+    }
+
+    function getVal(id) { return document.getElementById(id).value; }
+    function getNum(id) { const v = parseFloat(getVal(id)); return isNaN(v) ? null : v; }
+
+    function fmt(v, d = 2) { return v == null ? '—' : v.toFixed(d); }
+
+    // ========== UI 事件 ==========
+    function onMaterialChange() {
+      const mat = getVal('materialSelect');
+      const infoEl = document.getElementById('materialInfo');
+      const stressEl = document.getElementById('allowableStress');
+      const tempEl = document.getElementById('temperature');
+
+      if (mat && MATERIAL_DB[mat]) {
+        const m = MATERIAL_DB[mat];
+        let infoHTML = `<strong>${m.name}</strong> | ${m.standard} | 最高使用温度: ${m.maxTemp}°C`;
+        const temp = getNum('temperature');
+        if (temp != null) {
+          const stress = interpolateStress(mat, temp);
+          if (stress != null) {
+            stressEl.value = stress.toFixed(1);
+            infoHTML += ` | 当前温度许用应力: <strong>${stress.toFixed(1)} MPa</strong>`;
+          } else {
+            infoHTML += ` | <strong style="color:#f87171">温度超出材料范围!</strong>`;
+          }
+        } else {
+          infoHTML += ` | 请输入设计温度以自动计算许用应力`;
+        }
+        infoEl.innerHTML = infoHTML;
+        infoEl.classList.add('show');
+      } else {
+        infoEl.classList.remove('show');
+      }
+
+      // Auto set Y coefficient
+      if (mat && MATERIAL_DB[mat]) {
+        document.getElementById('tempCoeff').value = MATERIAL_DB[mat].type === 'austenitic' ? '0.7' : '0.4';
+      }
+    }
+
+    function onTubeODChange() {
+      const od = getVal('tubeOD');
+      if (od) {
+        document.getElementById('tubeODInput').value = od;
+      }
+    }
+
+    // Temperature change triggers material re-evaluation
+    document.getElementById('temperature').addEventListener('input', () => {
+      if (getVal('materialSelect')) onMaterialChange();
+    });
+
+    // Toggle sections
+    document.getElementById('enableMAWP').addEventListener('change', e => {
+      document.getElementById('mawpSection').style.display = e.target.checked ? '' : 'none';
+    });
+    document.getElementById('enableWallTemp').addEventListener('change', e => {
+      document.getElementById('wallTempSection').style.display = e.target.checked ? '' : 'none';
+    });
+    document.getElementById('enableBending').addEventListener('change', e => {
+      document.getElementById('bendingSection').style.display = e.target.checked ? '' : 'none';
+    });
+
+    // ========== 计算引擎 ==========
+    let calcResults = null;
+
+    function calculate() {
+      const P = getNum('pressure');
+      const T = getNum('temperature');
+      const Do = getNum('tubeODInput');
+      const sigma = getNum('allowableStress');
+      const phi = parseFloat(getVal('weldEff'));
+      const C = getNum('corrosion') ?? 0;
+      const mat = getVal('materialSelect');
+
+      // Validation
+      if (P == null || T == null || Do == null || sigma == null) {
+        alert('请填写设计压力、设计温度、管外径和许用应力！');
+        return;
+      }
+
+      const matInfo = mat ? MATERIAL_DB[mat] : null;
+
+      // 1. Minimum wall thickness
+      const t_min_pressure = (P * Do) / (2 * sigma * phi + P) + C;
+
+      // 2. MAWP
+      let p_max = null;
+      const t_nom = getNum('nomWall');
+      const Y = getNum('tempCoeff') ?? 0.4;
+      if (document.getElementById('enableMAWP').checked && t_nom != null) {
+        const t_eff = t_nom - C;
+        if (t_eff <= 0) {
+          alert('有效壁厚 ≤ 0，请检查名义壁厚和腐蚀裕量！');
+          return;
+        }
+        p_max = (2 * sigma * t_eff * phi) / (Do - 2 * Y * t_eff);
+      }
+
+      // 3. Wall temperature
+      let Tw = null;
+      if (document.getElementById('enableWallTemp').checked) {
+        const Tf = getNum('fluidTemp');
+        const q = getNum('heatFlux');
+        const hi = getNum('filmCoeff');
+        const lambda = getNum('thermalCond');
+        if (Tf == null || q == null || hi == null || lambda == null) {
+          alert('请填写管壁温度校核所需的所有参数！');
+          return;
+        }
+        const t_eff_wall = t_nom != null ? (t_nom - C) / 1000 : t_min_pressure / 1000;
+        Tw = Tf + q / hi + (q * t_eff_wall) / lambda;
+      }
+
+      // 4. Bending stress
+      let sigma_b = null;
+      if (document.getElementById('enableBending').checked) {
+        const M = getNum('bendMoment');
+        const Z = getNum('sectionMod');
+        if (M == null || Z == null) {
+          alert('请填写弯曲应力校核所需的所有参数！');
+          return;
+        }
+        sigma_b = M / Z;
+      }
+
+      // Build report
+      const report = buildReport(P, T, Do, sigma, phi, C, matInfo, mat, t_min_pressure,
+                                  p_max, t_nom, Y, Tw, sigma_b);
+      document.getElementById('report').innerHTML = report;
+
+      calcResults = {
+        P, T, Do, sigma, phi, C, matInfo, mat,
+        t_min_pressure, p_max, t_nom, Y, Tw, sigma_b,
+        date: new Date().toLocaleString('zh-CN')
+      };
+    }
+
+    function buildReport(P, T, Do, sigma, phi, C, matInfo, matName, t_min, p_max, t_nom, Y, Tw, sigma_b) {
+      let r = '';
+      const PASS = '<span class="h-pass">✓ 满足要求</span>';
+      const FAIL = '<span class="h-fail">✗ 不满足要求</span>';
+      const v = (val) => `<span class="h-val">${val}</span>`;
+
+      r += `<span class="h-title">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>\n`;
+      r += `<span class="h-title">  加热炉炉管强度计算报告</span>\n`;
+      r += `<span class="h-title">  标准: SH/T 3037</span>\n`;
+      r += `<span class="h-title">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>\n\n`;
+
+      r += `<span class="h-section">▸ 输入参数</span>\n`;
+      r += `  设计压力 P:        ${v(P + ' MPa')}\n`;
+      r += `  设计温度 T:        ${v(T + ' °C')}\n`;
+      r += `  管外径 Do:         ${v(Do + ' mm')}\n`;
+      r += `  管材:              ${v(matInfo ? matInfo.name + ' (' + matInfo.standard + ')' : '自定义')}\n`;
+      r += `  许用应力 [σ]:      ${v(sigma + ' MPa')}\n`;
+      r += `  焊缝系数 φ:       ${v(phi)}\n`;
+      r += `  腐蚀裕量 C:       ${v(C + ' mm')}\n`;
+      if (matInfo) {
+        r += `  最高使用温度:      ${v(matInfo.maxTemp + ' °C')}`;
+        if (T > matInfo.maxTemp) r += `  ${FAIL}`;
+        r += '\n';
+      }
+      r += '\n';
+
+      r += `<span class="h-section">▸ 最小壁厚计算</span>\n`;
+      r += `  公式: t_min = P·Do / (2·[σ]·φ + P) + C\n`;
+      r += `       t_min = ${v(P)}×${v(Do)} / (2×${v(sigma)}×${v(phi)} + ${v(P)}) + ${v(C)}\n`;
+      r += `       t_min = ${v(t_min.toFixed(3) + ' mm')}\n\n`;
+
+      if (p_max != null && t_nom != null) {
+        const t_eff = t_nom - C;
+        r += `<span class="h-section">▸ 最大允许操作压力 (MAWP)</span>\n`;
+        r += `  名义壁厚:          ${v(t_nom + ' mm')}\n`;
+        r += `  有效壁厚 t_eff:    ${v(t_eff.toFixed(2) + ' mm')} (= ${t_nom} - ${C})\n`;
+        r += `  温度系数 Y:        ${v(Y)}\n`;
+        r += `  公式: P_max = 2·[σ]·t_eff·φ / (Do - 2·Y·t_eff)\n`;
+        r += `       P_max = 2×${v(sigma)}×${v(t_eff.toFixed(2))}×${v(phi)} / (${v(Do)} - 2×${v(Y)}×${v(t_eff.toFixed(2))})\n`;
+        r += `       P_max = ${v(p_max.toFixed(3) + ' MPa')}\n`;
+        r += `       设计压力 P = ${v(P + ' MPa')}`;
+        r += p_max >= P ? `  →  ${PASS}` : `  →  ${FAIL}`;
+        r += '\n\n';
+      }
+
+      if (Tw != null) {
+        const Tf = getNum('fluidTemp');
+        const q = getNum('heatFlux');
+        const hi = getNum('filmCoeff');
+        const lambda = getNum('thermalCond');
+        r += `<span class="h-section">▸ 管壁温度校核</span>\n`;
+        r += `  介质温度 Tf:       ${v(Tf + ' °C')}\n`;
+        r += `  热强度 q:          ${v(q + ' W/m²')}\n`;
+        r += `  内膜系数 hi:       ${v(hi + ' W/(m²·K)')}\n`;
+        r += `  导热系数 λ:        ${v(lambda + ' W/(m·K)')}\n`;
+        r += `  公式: Tw = Tf + q/hi + q·t_m/λ\n`;
+        r += `       Tw = ${v(Tf)} + ${v(q)}/${v(hi)} + ${v(q)}×${v((t_nom != null ? (t_nom-C)/1000 : t_min/1000).toFixed(4))}/${v(lambda)}\n`;
+        r += `       Tw = ${v(Tw.toFixed(1) + ' °C')}\n`;
+        if (matInfo) {
+          r += `       材料最高允许温度: ${v(matInfo.maxTemp + ' °C')}`;
+          r += Tw <= matInfo.maxTemp ? `  →  ${PASS}` : `  →  ${FAIL}`;
+        }
+        r += '\n\n';
+      }
+
+      if (sigma_b != null) {
+        const M = getNum('bendMoment');
+        const Z = getNum('sectionMod');
+        r += `<span class="h-section">▸ 弯曲应力校核</span>\n`;
+        r += `  弯矩 M:            ${v(M + ' N·mm')}\n`;
+        r += `  截面模量 Z:        ${v(Z + ' mm³')}\n`;
+        r += `  公式: σ_b = M / Z\n`;
+        r += `       σ_b = ${v(sigma_b.toFixed(2) + ' MPa')}\n`;
+        r += `       许用应力 [σ]: ${v(sigma + ' MPa')}`;
+        r += sigma_b <= sigma ? `  →  ${PASS}` : `  →  ${FAIL}`;
+        r += '\n\n';
+      }
+
+      // Summary
+      r += `<span class="h-section">▸ 结论</span>\n`;
+      r += `  建议最小壁厚:      ${v(t_min.toFixed(2) + ' mm')}\n`;
+      r += `  管规格:            ${v('Φ' + Do + ' × t ≥ ' + t_min.toFixed(2) + ' mm')}\n`;
+      if (matInfo) r += `  材料:              ${v(matInfo.name)}\n`;
+      r += '\n';
+      r += `<span class="h-title">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>\n`;
+      r += `<span style="color:rgba(255,255,255,0.3);font-size:12px;">注：本报告依据 SH/T 3037 标准生成，材料许用应力为近似参考值。</span>\n`;
+      r += `<span style="color:rgba(255,255,255,0.3);font-size:12px;">实际工程设计请以最新正式出版的标准文本为准。</span>`;
+
+      return r;
+    }
+
+    // ========== PDF 导出（逐区块分页） ==========
+    async function exportPDF() {
+      if (!calcResults) { alert('请先进行计算！'); return; }
+
+      const d = calcResults;
+      const defaultName = `炉管强度计算_${d.matInfo ? d.matInfo.name.replace(/[/\\?%*:|"<>]/g,'_') : '自定义'}_${d.P}MPa_${d.T}℃_${d.Do}mm`;
+
+      const FONT = '"Microsoft YaHei","SimHei",Arial,sans-serif';
+      const HEADER_BG = '#f0ecff';
+      const ACCENT = '#302b63';
+
+      // Helper: create a section block as a separate div
+      function section(title, rows) {
+        let html = `<div style="page-break-inside:avoid;break-inside:avoid;margin-bottom:10px;">`;
+        html += `<div style="background:${HEADER_BG};padding:5px 10px;font-weight:700;color:${ACCENT};font-size:12.5px;border-bottom:1px solid #ddd;border-radius:3px 3px 0 0;">${title}</div>`;
+        html += `<table style="width:100%;border-collapse:collapse;font-size:12.5px;">`;
+        for (const row of rows) {
+          html += `<tr>`;
+          for (const cell of row) {
+            html += `<td style="padding:3px 10px;${cell.style || ''}">${cell.text}</td>`;
+          }
+          html += `</tr>`;
+        }
+        html += `</table></div>`;
+        return html;
+      }
+
+      const cell = (text, extra) => ({ text, style: extra || '' });
+      const label = (t) => cell(t, 'color:#555;width:30%;');
+      const val = (t) => cell(t, 'font-weight:600;');
+      const fullRow = (l, r) => [label(l), val(r)];
+
+      // Build all sections
+      const sections = [];
+
+      // Header
+      sections.push(`<div style="text-align:center;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid ${ACCENT};">
+        <h1 style="font-size:18px;margin:0 0 3px;color:${ACCENT};">加热炉炉管强度计算报告</h1>
+        <p style="margin:0;font-size:11px;color:#666;">依据标准：SH/T 3037 &nbsp;|&nbsp; 计算日期：${d.date}</p>
+      </div>`);
+
+      // Section 1: Input
+      sections.push(section('一、输入参数', [
+        fullRow('设计压力 P', `${d.P} MPa`),
+        fullRow('设计温度 T', `${d.T} °C`),
+        fullRow('管外径 Do', `${d.Do} mm`),
+        fullRow('管材', d.matInfo ? `${d.matInfo.name}（${d.matInfo.standard}）` : '自定义'),
+        fullRow('许用应力 [σ]', `${d.sigma} MPa`),
+        fullRow('焊缝系数 φ', `${d.phi}`),
+        fullRow('腐蚀裕量 C', `${d.C} mm`),
+        ...(d.matInfo ? [fullRow('最高使用温度', `${d.matInfo.maxTemp} °C`)] : [])
+      ]));
+
+      // Section 2: Min wall thickness
+      sections.push(section('二、最小壁厚计算', [
+        [label('公式'), val('t_min = P·Do / (2·[σ]·φ + P) + C')],
+        [label('计算过程'), cell(`${d.P}×${d.Do} / (2×${d.sigma}×${d.phi} + ${d.P}) + ${d.C}`)],
+        [label('最小壁厚 t_min'), cell(`<span style="font-weight:700;color:${ACCENT};font-size:14px;">${d.t_min_pressure.toFixed(3)} mm</span>`)]
+      ]));
+
+      // Section 3: MAWP
+      if (d.p_max != null && d.t_nom != null) {
+        const tEff = d.t_nom - d.C;
+        const passFail = d.p_max >= d.P
+          ? '<span style="color:#16a34a;font-weight:700;">✓ 满足要求 (P_max ≥ P)</span>'
+          : '<span style="color:#dc2626;font-weight:700;">✗ 不满足要求 (P_max < P)</span>';
+        sections.push(section('三、最大允许操作压力 (MAWP) 校核', [
+          fullRow('名义壁厚 t_nom', `${d.t_nom} mm`),
+          fullRow('有效壁厚 t_eff', `${tEff.toFixed(2)} mm （= ${d.t_nom} − ${d.C}）`),
+          fullRow('温度系数 Y', `${d.Y}`),
+          [label('公式'), val('P_max = 2·[σ]·t_eff·φ / (Do − 2·Y·t_eff)')],
+          [label('计算过程'), cell(`2×${d.sigma}×${tEff.toFixed(2)}×${d.phi} / (${d.Do} − 2×${d.Y}×${tEff.toFixed(2)})`)],
+          [label('最大允许压力 P_max'), cell(`<span style="font-weight:700;color:${ACCENT};font-size:14px;">${d.p_max.toFixed(3)} MPa</span>`)],
+          [label(`设计压力 P = ${d.P} MPa`), cell(passFail)]
+        ]));
+      }
+
+      // Section 4: Wall temperature
+      if (d.Tw != null) {
+        const pass = d.matInfo && d.Tw <= d.matInfo.maxTemp;
+        const verdict = d.matInfo
+          ? (pass
+            ? '<span style="color:#16a34a;font-weight:700;">✓ 满足要求</span>'
+            : '<span style="color:#dc2626;font-weight:700;">✗ 超过材料限值</span>')
+          : '';
+        sections.push(section('四、管壁温度校核', [
+          fullRow('介质温度 Tf', `${getNum('fluidTemp')} °C`),
+          fullRow('热强度 q', `${getNum('heatFlux')} W/m²`),
+          fullRow('内膜传热系数 hi', `${getNum('filmCoeff')} W/(m²·K)`),
+          fullRow('导热系数 λ', `${getNum('thermalCond')} W/(m·K)`),
+          [label('管壁温度 Tw'), cell(`<span style="font-weight:700;color:${ACCENT};font-size:14px;">${d.Tw.toFixed(1)} °C</span>`)],
+          ...(d.matInfo ? [[label(`材料最高允许温度 ${d.matInfo.maxTemp} °C`), cell(verdict)]] : [])
+        ]));
+      }
+
+      // Section 5: Bending stress
+      if (d.sigma_b != null) {
+        const pass = d.sigma_b <= d.sigma;
+        sections.push(section('五、弯曲应力校核', [
+          fullRow('弯矩 M', `${getNum('bendMoment')} N·mm`),
+          fullRow('截面模量 Z', `${getNum('sectionMod')} mm³`),
+          [label('弯曲应力 σ_b = M/Z'), cell(`<span style="font-weight:700;color:${ACCENT};font-size:14px;">${d.sigma_b.toFixed(2)} MPa</span>`)],
+          [label(`许用应力 [σ] = ${d.sigma} MPa`),
+            cell(pass
+              ? '<span style="color:#16a34a;font-weight:700;">✓ 满足要求 (σ_b ≤ [σ])</span>'
+              : '<span style="color:#dc2626;font-weight:700;">✗ 不满足要求 (σ_b > [σ])</span>')]
+        ]));
+      }
+
+      // Conclusion
+      sections.push(section('结论', [
+        fullRow('建议最小壁厚', `${d.t_min_pressure.toFixed(2)} mm`),
+        fullRow('管规格', `Φ${d.Do} × t ≥ ${d.t_min_pressure.toFixed(2)} mm`),
+        ...(d.matInfo ? [fullRow('材料', d.matInfo.name)] : [])
+      ]));
+
+      // Footer
+      sections.push(`<div style="margin-top:14px;padding-top:10px;border-top:1px solid #ddd;font-size:10px;color:#999;line-height:1.6;">
+        <p style="margin:0;">注：本报告依据 SH/T 3037 标准生成，材料许用应力为近似参考值。</p>
+        <p style="margin:0;">实际工程设计请以最新正式出版的标准文本为准。</p>
+      </div>`);
+
+      // Render each section to canvas, then stitch into PDF page-by-page
+      const container = document.createElement('div');
+      container.style.cssText = `padding:30px 36px;font-family:${FONT};color:#1a1a2e;line-height:1.5;background:#fff;width:720px;`;
+      document.body.appendChild(container);
+
+      try {
+        const { jsPDF } = window.jspdf || {};
+        if (!jsPDF) throw new Error('jsPDF 未加载，请检查网络连接');
+        const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+        const pageW = pdf.internal.pageSize.getWidth();
+        const pageH = pdf.internal.pageSize.getHeight();
+        const marginLR = 10, marginTB = 12;
+        const contentW = pageW - marginLR * 2;
+        const availH = pageH - marginTB * 2;
+        let curY = marginTB; // current Y position on PDF page
+        let firstPage = true;
+
+        for (let i = 0; i < sections.length; i++) {
+          container.innerHTML = sections[i];
+          await new Promise(r => setTimeout(r, 30));
+
+          const canvas = await html2canvas(container, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+          const imgData = canvas.toDataURL('image/jpeg', 0.95);
+          const imgW = contentW;
+          const imgH = (canvas.height / canvas.width) * imgW;
+
+          if (imgH > availH) {
+            // Section itself is taller than one page — split it
+            const totalSlices = Math.ceil(imgH / availH);
+            const sliceHpx = canvas.height / totalSlices;
+            for (let s = 0; s < totalSlices; s++) {
+              if (!firstPage || s > 0) pdf.addPage();
+              firstPage = false;
+              curY = marginTB;
+              const sliceCanvas = document.createElement('canvas');
+              sliceCanvas.width = canvas.width;
+              sliceCanvas.height = Math.round(sliceHpx);
+              const ctx = sliceCanvas.getContext('2d');
+              ctx.drawImage(canvas, 0, Math.round(s * sliceHpx), canvas.width, sliceCanvas.height, 0, 0, canvas.width, sliceCanvas.height);
+              const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.95);
+              const sliceImgH = (sliceCanvas.height / sliceCanvas.width) * imgW;
+              pdf.addImage(sliceData, 'JPEG', marginLR, curY, imgW, sliceImgH);
+              curY += sliceImgH;
+            }
+          } else if (curY + imgH > pageH - marginTB) {
+            // Doesn't fit on current page — start new page
+            if (!firstPage) pdf.addPage();
+            firstPage = false;
+            curY = marginTB;
+            pdf.addImage(imgData, 'JPEG', marginLR, curY, imgW, imgH);
+            curY += imgH;
+          } else {
+            // Fits — add to current page
+            if (firstPage) firstPage = false;
+            pdf.addImage(imgData, 'JPEG', marginLR, curY, imgW, imgH);
+            curY += imgH;
+          }
+        }
+
+        document.body.removeChild(container);
+
+        const pdfBlob = pdf.output('blob');
+
+        // Try File System Access API (Chrome/Edge)
+        if ('showSaveFilePicker' in window) {
+          try {
+            const handle = await window.showSaveFilePicker({
+              suggestedName: defaultName + '.pdf',
+              types: [{ description: 'PDF 文件', accept: { 'application/pdf': ['.pdf'] } }]
+            });
+            const writable = await handle.createWritable();
+            await writable.write(pdfBlob);
+            await writable.close();
+            alert('PDF 已保存！');
+            return;
+          } catch (e) {
+            if (e.name === 'AbortError') return;
+          }
+        }
+
+        // Fallback download
+        const url = URL.createObjectURL(pdfBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = defaultName + '.pdf';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        document.body.removeChild(container);
+        alert('PDF 生成失败：' + err.message);
+      }
+    }
+
+    // ========== 重置 ==========
+    function resetForm() {
+      document.getElementById('materialSelect').value = '12Cr5Mo';
+      document.getElementById('tubeOD').value = '102';
+      document.getElementById('tubeODInput').value = '102';
+      document.getElementById('pressure').value = '5.0';
+      document.getElementById('temperature').value = '500';
+      document.getElementById('allowableStress').value = '';
+      document.getElementById('nomWall').value = '8.0';
+      document.getElementById('corrosion').value = '0';
+      document.getElementById('fluidTemp').value = '420';
+      document.getElementById('heatFlux').value = '35000';
+      document.getElementById('filmCoeff').value = '1500';
+      document.getElementById('thermalCond').value = '30';
+      document.getElementById('bendMoment').value = '500000';
+      document.getElementById('sectionMod').value = '12000';
+      document.getElementById('enableMAWP').checked = true;
+      document.getElementById('enableWallTemp').checked = true;
+      document.getElementById('enableBending').checked = true;
+      document.getElementById('mawpSection').style.display = '';
+      document.getElementById('wallTempSection').style.display = '';
+      document.getElementById('bendingSection').style.display = '';
+      document.getElementById('report').innerHTML = '<div class="empty-report">输入参数后点击「计算」查看报告</div>';
+      calcResults = null;
+      onMaterialChange();
+    }
+
+    // Initialize default values on page load
+    onMaterialChange();
+    document.getElementById('wallTempSection').style.display = '';
+    document.getElementById('bendingSection').style.display = '';
+  </script>
+</body>
+</html>

@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>耐火衬里厚度计算器</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
@@ -19,6 +21,8 @@
         .row .form-group { flex: 1; }
         .btn { background: #e67e22; color: #fff; border: none; padding: 12px 32px; border-radius: 6px; font-size: 16px; cursor: pointer; display: block; width: 100%; }
         .btn:hover { background: #d35400; }
+        .btn-pdf { background: #16a34a; margin-top: 12px; }
+        .btn-pdf:hover { background: #22c55e; }
         .result { background: #fdf2e9; border: 2px solid #e67e22; border-radius: 8px; padding: 20px; margin-top: 16px; display: none; }
         .result.show { display: block; }
         .result-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #ddd; }
@@ -91,6 +95,7 @@
             <span class="result-label">评估</span>
             <span id="rAssess">-</span>
         </div>
+        <button class="btn btn-pdf" onclick="downloadPDF()">&#128196; 导出 PDF 报告</button>
     </div>
 
     <div class="tip">
@@ -125,6 +130,58 @@ function calculate() {
         ? '<span style="color:#27ae60;font-weight:700;">✅ 外表温度满足要求</span>'
         : '<span style="color:#e74c3c;font-weight:700;">❌ 外表温度超标，需增加保温层厚度</span>';
     document.getElementById('result').classList.add('show');
+}
+
+function _generatePDF(title, resultId, inputCfg) {
+    if (!document.getElementById(resultId).classList.contains('show')) { alert('请先进行计算！'); return; }
+    var ACCENT = '#e67e22';
+    var FONT = '"Microsoft YaHei","SimHei",Arial,sans-serif';
+    var HEADER_BG = '#fdf2e9';
+    var rows = '';
+    inputCfg.forEach(function(item) {
+        var val = item.fn ? item.fn() : (document.getElementById(item.id) || {}).value;
+        if (val == null || val === '') return;
+        rows += '<tr><td style="padding:4px 10px;color:#555;width:40%;border-bottom:1px solid #eee;">' + item.label + '</td>' +
+                '<td style="padding:4px 10px;font-weight:600;border-bottom:1px solid #eee;">' + val + (item.unit ? ' ' + item.unit : '') + '</td></tr>';
+    });
+    var container = document.createElement('div');
+    container.style.cssText = 'padding:30px 36px;font-family:' + FONT + ';color:#1a1a2e;line-height:1.5;background:#fff;width:720px;';
+    container.innerHTML =
+        '<div style="text-align:center;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid ' + ACCENT + ';">' +
+        '<h1 style="font-size:18px;margin:0 0 4px;color:' + ACCENT + ';">' + title + '</h1>' +
+        '<p style="margin:0;font-size:11px;color:#666;">计算日期：' + new Date().toLocaleString('zh-CN') + '</p></div>' +
+        '<div style="margin-bottom:14px;"><div style="background:' + HEADER_BG + ';padding:5px 10px;font-weight:700;color:#2c3e50;font-size:13px;border-radius:4px 4px 0 0;">输入参数</div>' +
+        '<table style="width:100%;border-collapse:collapse;font-size:12.5px;">' + rows + '</table></div>' +
+        document.getElementById(resultId).outerHTML.replace('display: none','').replace('style="display:none"','');
+    document.body.appendChild(container);
+    html2canvas(container, {scale:2, useCORS:true, backgroundColor:'#ffffff'}).then(function(canvas) {
+        document.body.removeChild(container);
+        var jsPDF = window.jspdf.jsPDF;
+        var pdf = new jsPDF({unit:'mm', format:'a4', orientation:'portrait'});
+        var pageW = pdf.internal.pageSize.getWidth(), pageH = pdf.internal.pageSize.getHeight();
+        var m = 10, cw = pageW - m*2, ih = (canvas.height/canvas.width)*cw;
+        if (m + ih + 10 <= pageH) { pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',m,m,cw,ih); }
+        else { var avail = pageH - m*2, slices = Math.ceil(ih/avail), sh = canvas.height/slices;
+            for (var s=0;s<slices;s++){if(s>0)pdf.addPage();var sc=document.createElement('canvas');sc.width=canvas.width;sc.height=Math.round(sh);
+            sc.getContext('2d').drawImage(canvas,0,Math.round(s*sh),canvas.width,sc.height,0,0,canvas.width,sc.height);
+            pdf.addImage(sc.toDataURL('image/jpeg',0.95),'JPEG',m,m,cw,(sc.height/sc.width)*cw);} }
+        pdf.setFontSize(8); pdf.setTextColor(180,180,180); pdf.text('wison0727.github.io',pageW/2,pageH-6,{align:'center'});
+        pdf.setProperties({title:title, author:'wison0727'});
+        var fname = title + '_' + new Date().toISOString().slice(0,10) + '.pdf';
+        var a = document.createElement('a'); a.href = URL.createObjectURL(pdf.output('blob')); a.download = fname;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    });
+}
+
+function downloadPDF() {
+    _generatePDF('耐火衬里厚度计算报告', 'result', [
+        {label:'炉膛设计温度', id:'furnaceTemp', unit:'°C'},
+        {label:'环境温度', id:'envTemp', unit:'°C'},
+        {label:'允许外表温度', id:'maxSkinTemp', unit:'°C'},
+        {label:'工作层 λ / 厚度', fn:function(){return document.getElementById('k1').value+' W/m·K / '+document.getElementById('t1').value+' mm';}},
+        {label:'隔热层 λ / 厚度', fn:function(){return document.getElementById('k2').value+' W/m·K / '+document.getElementById('t2').value+' mm';}},
+        {label:'保温层 λ / 厚度', fn:function(){return document.getElementById('k3').value+' W/m·K / '+document.getElementById('t3').value+' mm';}}
+    ]);
 }
 </script>
 </body>
